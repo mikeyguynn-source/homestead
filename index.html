@@ -46,10 +46,13 @@ small,.mut{color:var(--mut)}
 #build-guide label{display:block;padding:5px 0;cursor:pointer}
 .guide-feedback{color:var(--acc);min-height:1.4em;margin:6px 0}
 .range-tool-photo{display:block;width:160px;max-width:100%;height:40px;object-fit:contain;margin:4px auto 0;background:#fff;border-radius:4px}
+
+/* Morning HQ learning */
+.learn-wrap{max-width:880px;margin:auto}.learn-hero{background:linear-gradient(125deg,#d8ad72,#ae6e43);color:#fff;border-radius:14px;padding:24px;margin-bottom:14px}.learn-hero h2{margin:5px 0}.learn-hero small{color:#fff}.learn-text{line-height:1.75;font-size:16px}.learn-text p{margin:0 0 14px}.learn-question{border-top:1px solid var(--line);padding:16px 0}.learn-choice{display:block;width:100%;text-align:left;white-space:normal;margin:7px 0}.learn-choice.selected{outline:2px solid var(--acc)}.learn-status{padding:10px;border-radius:8px;background:var(--bg);margin:12px 0}.learn-actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.learn-links a{display:block;margin:9px 0;color:var(--acc);overflow-wrap:anywhere}
 </style></head><body>
-<nav><b>Life HQ</b><button data-s="dash" class="on">Dashboard</button><button data-s="habits">Habits</button><button data-s="home">Homestead</button><button data-s="prog">Progress</button></nav>
+<nav><b>Life HQ</b><button data-s="morning" class="on">Morning HQ</button><button data-s="dash">Dashboard</button><button data-s="habits">Habits</button><button data-s="home">Homestead</button><button data-s="prog">Progress</button></nav>
 <main>
-<section id="dash"></section><section id="habits" class="hide"></section>
+<section id="morning"></section><section id="dash" class="hide"></section><section id="habits" class="hide"></section>
 <section id="home" class="hide"><div id="hs"><canvas id="cv" tabindex="0" aria-label="Third-person homestead"></canvas><div class="hud" id="hud"></div><div class="game-help"><strong id="hint"></strong><span>WASD Walk · Drag Orbit · Scroll Zoom · Space Jump · E Interact · B Build · R Rotate · Left click Place</span></div></div></section>
 <section id="prog" class="hide"></section>
 </main><dialog id="build-guide" aria-labelledby="guide-title"></dialog><div id="toast"></div><div id="timer" class="hide"></div>
@@ -719,11 +722,51 @@ function frame(){
   G.sc.fog.color.copy(sky);
   simStep(h);G.R.render(G.sc,G.cam);const sx=$('#sim');if(sx)sx.textContent=simTxt;const k=$('#clk');if(k)k.textContent=(h>0?'☀ Day ':'☾ Night ')+(Math.floor(Date.now()/(86400000/3))%1000);
 }
+
+/* ---------- Morning HQ: source-ordered daily learning ---------- */
+const LEARNING_TOPICS=[
+'Origins of Homo sapiens and earlier hominins',
+'Evolution of human cognition, consciousness, and intelligence',
+'The African savanna hypothesis and competing theories of human evolution',
+'The Ice Ages and their effects on human survival, cooperation, and adaptation',
+'Hunter-gatherer societies and ancestral environments',
+'The transition from nomadic lifestyles to agriculture and civilization',
+'The evolutionary mismatch hypothesis: ancient brains in modern environments',
+'Human behavioral diversity across different ecological environments'
+];
+const LEARNING_SOURCE='https://docs.google.com/document/d/1jsfZmMbxQhKgFmVdjnUZZulH4W1ilmOoKyDO3hU79Kk/edit';
+const LESSON_ONE=[
+'Human evolution is not a ladder of inevitable progress from primitive to modern. It is a branching evolutionary history: several human species existed at overlapping times. Homo sapiens is the only surviving human species, but our evolutionary relatives included Neanderthals and other hominins.',
+'Our species evolved in Africa. Fossils from Jebel Irhoud in Morocco, dated to approximately 315,000 years ago, preserve a mixture of traits: faces resembling later Homo sapiens alongside more elongated braincases. This mosaic complicates the idea of a single moment when every modern anatomical feature appeared.',
+'Fossils, archaeological artifacts, and DNA provide different types of evidence. Fossils reveal anatomy; stone tools and other artifacts reveal some behavior; genetics helps reconstruct ancestry and population movements. None of these sources gives us direct access to prehistoric subjective experience.',
+'Early humans adapted to changing environments through mobility, flexible diets, tools, and social cooperation. The evolutionary roots of modern cognition and social life are therefore better understood as a collection of interacting adaptations, rather than one simple savanna-origin story.',
+'Why this matters for your Human Flourishing Project: evolution offers hypotheses about belonging, motivation, threat detection, and social behavior, but an evolutionary explanation does not automatically prove what is psychologically optimal today. We must test claims about modern well-being independently.'
+];
+const LEARNING_QUIZ=[
+{q:'Which statement best describes the human evolutionary family tree?',a:['A straight progression of species','A branching history with overlapping species','All humans descended from living chimpanzees'],correct:1,why:'Human evolution is branching, and several human lineages coexisted.'},
+{q:'What is significant about the Jebel Irhoud fossils?',a:['They demonstrate a mix of early and later Homo sapiens traits','They prove all modern humans originated in one Moroccan village','They are the first known stone tools'],correct:0,why:'The fossils combine a relatively modern-looking face with a more archaic braincase.'},
+{q:'Which type of evidence most directly informs us about early human skeletal anatomy?',a:['Stone tool typology','Fossil remains','Modern psychological questionnaires'],correct:1,why:'Fossil bones and teeth provide direct anatomical evidence.'}
+];
+function learnState(){if(!S.learning||typeof S.learning!=='object')S.learning={completed:[],skipped:[],answers:{},lastDate:''};S.learning.completed=S.learning.completed||[];S.learning.skipped=S.learning.skipped||[];S.learning.answers=S.learning.answers||{};return S.learning}
+function localDay(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function currentLesson(){const l=learnState(),today=localDay();const doneToday=l.completed.some(x=>x.date===today),skipToday=l.skipped.includes(today);const i=Math.min(l.completed.length,LEARNING_TOPICS.length-1);return{l,today,doneToday,skipToday,i}}
+function morning(){
+ const el=$('#morning'),{l,today,doneToday,skipToday,i}=currentLesson(),first=i===0;
+ const status=doneToday?'Completed for today ✓':skipToday?'Skipped for today — you can return any time':'Your daily learning comes before planning. You can skip when needed.';
+ const qHtml=first?LEARNING_QUIZ.map((q,n)=>'<div class="learn-question"><b>'+(n+1)+'. '+esc(q.q)+'</b>'+q.a.map((a,j)=>'<button class="btn learn-choice '+(l.answers[n]===j?'selected':'')+'" data-q="'+n+'" data-a="'+j+'">'+esc(a)+'</button>').join('')+(l.answers[n]!==undefined?'<small>'+esc(l.answers[n]===q.correct?'Correct. ':'Try again. ')+esc(q.why)+'</small>':'')+'</div>').join(''):'<p class="mut">This topic is next in your source outline. Its full illustrated briefing and quiz have not been curated yet. Follow the curriculum source below; this lesson is not falsely marked as researched.</p>';
+ const canComplete=first&&LEARNING_QUIZ.every((q,n)=>l.answers[n]===q.correct);
+ el.innerHTML='<div class="learn-wrap"><div class="learn-hero"><small>THE HUMAN FLOURISHING PROJECT · MORNING HQ</small><h2>Today’s learning</h2><div>Section 1.1 · Human Evolution and Prehistory · Topic '+(i+1)+' of '+LEARNING_TOPICS.length+'</div></div><div class="card"><h2>'+esc(LEARNING_TOPICS[i])+'</h2><div class="learn-status">'+status+'</div><div class="learn-text">'+(first?LESSON_ONE.map(p=>'<p>'+esc(p)+'</p>').join(''):'')+'</div><div class="learn-links"><b>Research and learning resources</b><a href="https://www.nature.com/articles/nature22336" target="_blank" rel="noopener noreferrer">Hublin et al. (2017), Nature — New fossils from Jebel Irhoud, Morocco</a><a href="https://www.nature.com/articles/nature22335" target="_blank" rel="noopener noreferrer">Richter et al. (2017), Nature — Dating the Jebel Irhoud fossils</a><a href="https://humanorigins.si.edu/evidence/human-fossils/species/homo-sapiens" target="_blank" rel="noopener noreferrer">Smithsonian Human Origins — Homo sapiens (illustrated)</a><a href="'+LEARNING_SOURCE+'" target="_blank" rel="noopener noreferrer">Your complete curriculum in Google Drive</a></div></div><div class="card"><h3>Knowledge check</h3>'+qHtml+'<div class="learn-actions"><button class="btn pri" id="learn-done" '+(!canComplete||doneToday?'disabled':'')+'>Complete today’s lesson</button><button class="btn" id="learn-skip">Skip for today</button><button class="btn" id="learn-dash">Go to Dashboard</button></div><small>Learning completion gives +1 earth once per day. Skipping does not award resources. Your GTD tasks remain accessible.</small></div></div>';
+ el.querySelectorAll('[data-q]').forEach(b=>b.onclick=()=>{l.answers[+b.dataset.q]=+b.dataset.a;save();morning()});
+ $('#learn-done').onclick=()=>{if(!canComplete||doneToday)return;l.completed.push({date:today,topic:LEARNING_TOPICS[i]});l.answers={};reward('Morning lesson',{earth:1});save();morning()};
+ $('#learn-skip').onclick=()=>{if(!l.skipped.includes(today))l.skipped.push(today);save();show('dash')};
+ $('#learn-dash').onclick=()=>show('dash');
+}
+
 /* ---------- nav ---------- */
-function show(s){['dash','habits','home','prog'].forEach(x=>$('#'+x).classList.toggle('hide',x!==s));
+function show(s){['morning','dash','habits','home','prog'].forEach(x=>$('#'+x).classList.toggle('hide',x!==s));
   document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.s===s));
-  if(s==='dash')dash();if(s==='habits')habits();if(s==='prog')prog();
+  if(s==='morning')morning();if(s==='dash')dash();if(s==='habits')habits();if(s==='prog')prog();
   if(s==='home'){if(!G)initGL();else{fit();hud()}$('#cv').focus({preventScroll:true})}else G?.keys.clear()}
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>show(b.dataset.s));
-show('dash');
+show('morning');
 </script></body></html>
