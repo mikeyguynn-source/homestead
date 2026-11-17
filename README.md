@@ -22,4 +22,6 @@ The dashboard, habit trackers, progress history, and water, power, and crop simu
 
 ## Limitations
 
+**Tools** sits beside **Build**. Study each item to unlock it. Equip the tape measure to click two ground points, or use the shovel on the soil patch near spawn. Follow the blue markers around the Earthship to the northeast target range. Unlock the fictional Range popper and Pop rounds, restock, and click the target from the blue pad. Ammo and hit counts are saved. Press Escape to put away the equipped tool.
+
 Movement is designed for keyboard and mouse. Collision uses simple boxes, including for irregular build parts, and decorative rocks and mesas have no collision. Player position, camera, and door state reset on reload. The simulation is simplified gameplay. Saves are local to the browser and do not synchronize.
