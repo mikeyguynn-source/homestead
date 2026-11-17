@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Life HQ</title>
+<style>
+:root{--bg:#f4ece0;--card:#fffaf2;--ink:#3b2f27;--mut:#8a7766;--acc:#c0623a;--ok:#6b8f55;--line:#e2d3bf;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1d1814;--card:#2a231d;--ink:#f0e4d4;--mut:#a89580;--acc:#e08a5c;--ok:#8fb577;--line:#41372d}}
+:root[data-theme="dark"]{--bg:#1d1814;--card:#2a231d;--ink:#f0e4d4;--mut:#a89580;--acc:#e08a5c;--ok:#8fb577;--line:#41372d}
+*{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif}
+nav{display:flex;gap:6px;padding:10px 14px;border-bottom:1px solid var(--line);position:sticky;top:env(safe-area-inset-top,0px);background:var(--bg);z-index:5;overflow-x:auto}
+nav b{margin-right:auto;color:var(--acc);white-space:nowrap;align-self:center}
+nav button,.btn{background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:7px 12px;cursor:pointer;font:inherit;white-space:nowrap}
+nav button.on,.btn.pri{background:var(--acc);color:#fff;border-color:var(--acc)}
+main{padding:14px;max-width:1500px;margin:auto}.hide{display:none!important}
+.bar{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+input[type=text]{flex:1;min-width:160px;padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);font:inherit}
+.cols{display:flex;gap:10px;overflow-x:auto;padding-bottom:8px}
+.col{flex:0 0 190px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px;min-height:240px}
+.col h4{margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut)}
+.col.over{outline:2px dashed var(--acc)}
+.task{display:flex;gap:6px;align-items:flex-start;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:6px 8px;margin-bottom:6px;cursor:grab}
+.task span{flex:1;word-break:break-word}.task.done span{text-decoration:line-through;color:var(--mut)}
+.task i{cursor:pointer;color:var(--mut);font-style:normal}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:12px}
+.habit{display:grid;grid-template-columns:130px repeat(31,22px);gap:4px;align-items:center;margin-bottom:6px;overflow-x:auto}
+.dot{width:20px;height:20px;border-radius:50%;border:2px solid var(--line);cursor:pointer;padding:0;background:none}
+.dot.dim{visibility:hidden}.dot.on{border-color:transparent}
+.hn{display:flex;gap:4px;align-items:center;cursor:pointer;font-weight:600}
+.res{display:flex;gap:10px;flex-wrap:wrap}.res div{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:4px 10px}
+#hs{position:relative;height:calc(100vh - 120px);min-height:380px;border-radius:12px;overflow:hidden;border:1px solid var(--line)}
+#cv{width:100%;height:100%;display:block;touch-action:none}
+.hud{position:absolute;left:10px;top:10px;right:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;pointer-events:none}
+.hud>*{pointer-events:auto;background:color-mix(in srgb,var(--card) 90%,transparent);border:1px solid var(--line);border-radius:8px;padding:5px 10px}
+#toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ok);color:#fff;padding:8px 16px;border-radius:20px;opacity:0;transition:opacity .25s;pointer-events:none;z-index:9}
+#timer{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:8}
+#timer div{background:var(--card);padding:28px;border-radius:14px;text-align:center;max-width:320px}
+#timer h1{font-size:48px;margin:6px 0}
+small,.mut{color:var(--mut)}
+</style></head><body>
+<nav><b>Life HQ</b><button data-s="dash" class="on">Dashboard</button><button data-s="habits">Habits</button><button data-s="home">Homestead</button><button data-s="prog">Progress</button></nav>
+<main>
+<section id="dash"></section><section id="habits" class="hide"></section>
+<section id="home" class="hide"><div id="hs"><canvas id="cv"></canvas><div class="hud" id="hud"></div></div></section>
+<section id="prog" class="hide"></section>
+</main><div id="toast"></div><div id="timer" class="hide"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const COLS=['Inbox','Next Actions','Scheduled','Projects','Waiting For','Someday/Maybe','Today'];
+const COST={wall:{tires:4,earth:6},cistern:{tires:2,earth:4},panel:{tires:1,earth:3},battery:{tires:2,earth:3},greenhouse:{tires:3,earth:8},greywater:{tires:2,earth:5}},K='lifehq.v1';
+const COLORS=['#c0623a','#6b8f55','#4f7ea8','#b58a2a'];
+let S;
+function fresh(){return{v:1,tasks:[],habits:[{id:'h1',name:'Meditate',color:COLORS[0]},{id:'h2',name:'Exercise',color:COLORS[1]},{id:'h3',name:'Study',color:COLORS[2]}],log:{},res:{tires:0,earth:0},walls:[],sim:{water:0,power:0},hist:[],odds:[70,20,8,2],month:new Date().toISOString().slice(0,7)}}
+function load(){try{const j=localStorage.getItem(K);S=j?Object.assign(fresh(),JSON.parse(j)):fresh()}catch(e){S=fresh()}}
+function save(){try{localStorage.setItem(K,JSON.stringify(S))}catch(e){}}
+load();
+const $=s=>document.querySelector(s),esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function toast(m){const t=$('#toast');t.textContent=m;t.style.opacity=1;clearTimeout(t._h);t._h=setTimeout(()=>t.style.opacity=0,1800)}
+function reward(label,base){
+  for(const k in base)S.res[k]=(S.res[k]||0)+base[k];
+  let msg='+'+Object.entries(base).map(([k,v])=>v+' '+k).join(', '),r=Math.random()*100,[a,b,c]=S.odds,extra='';
+  if(r>=a){if(r<a+b){S.res.tires++;extra=' · small bonus: +1 tire'}else if(r<a+b+c){S.res.earth+=3;S.res.tires++;extra=' · medium bonus: +3 earth, +1 tire'}else{S.res.tires+=3;S.res.earth+=5;extra=' · rare bonus: +3 tires, +5 earth'}}
+  S.hist.unshift({t:Date.now(),label,msg:msg+extra});S.hist=S.hist.slice(0,50);toast(msg+extra);
+}
+/* ---------- Dashboard ---------- */
+function dash(){
+  const el=$('#dash'),open=S.tasks.filter(t=>!t.done&&t.col==='Today').slice(0,3);
+  el.innerHTML=`<div class="bar"><input type="text" id="nt" placeholder="Capture a task (goes to Inbox)…"><button class="btn pri" id="add">Add</button><button class="btn pri" id="start">▶ START NEXT ACTION</button><button class="btn" id="just">JUST START (2 min)</button></div>
+  <div class="card"><b>Top Three Priorities</b> <small>(first three open tasks in Today)</small>${open.map((t,i)=>`<div>${i+1}. ${esc(t.t)}</div>`).join('')||'<div class="mut">Move tasks into Today.</div>'}</div>
+  <div class="cols">${COLS.map(c=>`<div class="col" data-c="${c}"><h4>${c} · ${S.tasks.filter(t=>t.col===c&&!t.done).length}</h4>${S.tasks.filter(t=>t.col===c).map(t=>`<div class="task ${t.done?'done':''}" draggable="true" data-id="${t.id}"><input type="checkbox" ${t.done?'checked':''} data-chk="${t.id}"><span data-ed="${t.id}">${esc(t.t)}</span><i data-del="${t.id}" title="Delete">×</i></div>`).join('')}</div>`).join('')}</div>
+  <small>Drag cards between columns. Double-click text to edit. Unchecking restores a task; a task only pays out once.</small>`;
+  const add=()=>{const v=$('#nt').value.trim();if(!v)return;S.tasks.push({id:'t'+Date.now(),t:v,col:'Inbox',done:false,paid:false});save();dash()};
+  $('#add').onclick=add;$('#nt').onkeydown=e=>{if(e.key==='Enter')add()};
+  $('#start').onclick=()=>{const t=S.tasks.find(t=>!t.done&&t.col==='Today')||S.tasks.find(t=>!t.done&&t.col==='Next Actions');t?focus(t,25*60,'Focus session'):toast('Add a task to Today or Next Actions first')};
+  $('#just').onclick=()=>{const t=S.tasks.find(t=>!t.done&&t.col==='Today')||S.tasks.find(t=>!t.done);t?focus(t,120,'Just start: do only the tiniest first step'):toast('Add a task first')};
+  el.querySelectorAll('.task').forEach(n=>n.ondragstart=e=>e.dataTransfer.setData('id',n.dataset.id));
+  el.querySelectorAll('.col').forEach(c=>{c.ondragover=e=>{e.preventDefault();c.classList.add('over')};c.ondragleave=()=>c.classList.remove('over');c.ondrop=e=>{e.preventDefault();const t=S.tasks.find(t=>t.id===e.dataTransfer.getData('id'));if(t){t.col=c.dataset.c;save();dash()}}});
+  el.querySelectorAll('[data-chk]').forEach(b=>b.onchange=()=>{const t=S.tasks.find(t=>t.id===b.dataset.chk);t.done=b.checked;if(t.done&&!t.paid){t.paid=true;reward('Task: '+t.t,{tires:2,earth:3})}save();dash()});
+  el.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{S.tasks=S.tasks.filter(t=>t.id!==b.dataset.del);save();dash()});
+  el.querySelectorAll('[data-ed]').forEach(b=>b.ondblclick=()=>{const t=S.tasks.find(t=>t.id===b.dataset.ed),v=prompt('Edit task',t.t);if(v&&v.trim()){t.t=v.trim();save();dash()}});
+}
+function focus(t,secs,msg){
+  const o=$('#timer');o.classList.remove('hide');let s=secs;
+  const draw=()=>o.innerHTML=`<div><small>${msg}</small><h3>${esc(t.t)}</h3><h1>${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}</h1><button class="btn" id="x">${s>0?'Stop':'Done'}</button></div>`;
+  draw();const h=setInterval(()=>{if(--s<=0){s=0;clearInterval(h);toast('Nicely done. Keep going or stop, your call.')}draw();$('#x').onclick=end},1000);
+  function end(){clearInterval(h);o.classList.add('hide')}$('#x').onclick=end;
+}
+/* ---------- Habits ---------- */
+function habits(){
+  const [y,m]=S.month.split('-').map(Number),days=new Date(y,m,0).getDate(),el=$('#habits');
+  el.innerHTML=`<div class="bar"><button class="btn" id="pm">◀</button><b style="align-self:center">${new Date(y,m-1,1).toLocaleString('en',{month:'long',year:'numeric'})}</b><button class="btn" id="nm">▶</button></div>
+  <div class="card"><div class="habit"><span></span>${Array.from({length:31},(_,i)=>`<small style="text-align:center">${i<days?i+1:''}</small>`).join('')}</div>
+  ${S.habits.map(h=>{const tot=Object.keys(S.log).filter(k=>k.startsWith(h.id+':')).length;return`<div class="habit"><div class="hn" data-h="${h.id}" title="Click to edit name and color">${esc(h.name)}<small>(${tot})</small></div>${Array.from({length:31},(_,i)=>{const d=i+1,k=`${h.id}:${S.month}-${String(d).padStart(2,'0')}`,on=S.log[k];return`<button class="dot ${i>=days?'dim':''} ${on?'on':''}" style="${on?'background:'+h.color:''}" data-k="${k}"></button>`}).join('')}</div>`}).join('')}</div>
+  <small>Missed days carry no penalty; totals in brackets are lifetime completions. Each day earns +1 earth the first time it’s checked.</small>`;
+  const shift=n=>{const d=new Date(y,m-1+n,1);S.month=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');save();habits()};
+  $('#pm').onclick=()=>shift(-1);$('#nm').onclick=()=>shift(1);
+  el.querySelectorAll('.dot').forEach(b=>b.onclick=()=>{const k=b.dataset.k;if(S.log[k])delete S.log[k];else{S.log[k]=1;S.paidH=S.paidH||{};if(!S.paidH[k]){S.paidH[k]=1;reward('Habit',{earth:1})}}save();habits()});
+  el.querySelectorAll('.hn').forEach(n=>n.onclick=()=>{const h=S.habits.find(h=>h.id===n.dataset.h),v=prompt('Habit name',h.name);if(v&&v.trim())h.name=v.trim();const c=prompt('Color (hex, or 1-4 for presets)',h.color);if(c)h.color=/^[1-4]$/.test(c)?COLORS[c-1]:c;save();habits()});
+}
+/* ---------- Progress ---------- */
+function prog(){
+  const done=S.tasks.filter(t=>t.done).length,c=t=>S.walls.filter(w=>w.t===t).length,n=S.walls.filter(w=>!w.t||w.t==='wall').length,lvl=(S.sim.stable||0)>=600?'Level 7: Self-Sufficient Homestead':c('greenhouse')&&c('greywater')&&c('cistern')&&c('panel')&&c('battery')&&n&&S.res.food>0?'Level 6: Integrated Homestead (started)':c('greenhouse')&&S.res.food>0?'Level 5: Food Production (started)':c('panel')&&c('battery')?'Level 4: Energy Independence (started)':c('cistern')?'Level 3: Water Independence (started)':n>=1?'Level 2: Shelter (in progress)':'Level 1: Empty Land';
+  $('#prog').innerHTML=`<div class="card"><b>${lvl}</b><div class="mut">${done} tasks completed · ${Object.keys(S.log).length} habit days · ${n} wall sections · stable ${Math.min(600,Math.floor(S.sim.stable||0))}/600 s</div></div>
+  <div class="card"><b>Bonus odds</b> <small>(transparent, adjustable, never paid or escalating; set all but “none” to 0 to turn bonuses off)</small><div class="bar" style="margin-top:8px">${['None','Small','Medium','Rare'].map((l,i)=>`<label>${l} % <input type="number" min="0" max="100" value="${S.odds[i]}" data-o="${i}" style="width:60px"></label>`).join('')}</div></div>
+  <div class="card"><b>Recent rewards</b>${S.hist.slice(0,12).map(h=>`<div><small>${new Date(h.t).toLocaleTimeString()}</small> ${esc(h.label)} <span class="mut">${esc(h.msg)}</span></div>`).join('')||'<div class="mut">Nothing yet.</div>'}</div>
+  <div class="bar"><button class="btn" id="ex">Export backup</button><button class="btn" id="im">Import backup</button><button class="btn" id="rs">Reset everything</button></div>
+  <small>Educational game only: simplified, not real construction guidance.</small>`;
+  document.querySelectorAll('[data-o]').forEach(i=>i.onchange=()=>{const v=S.odds.slice();v[i.dataset.o]=+i.value;const [,a,b,c]=v;if(a+b+c>100){toast('Bonus odds can’t exceed 100%');prog();return}v[0]=100-a-b-c;S.odds=v;save();prog()});
+  $('#ex').onclick=()=>{const t=JSON.stringify(S);navigator.clipboard&&navigator.clipboard.writeText(t).then(()=>toast('Backup copied to clipboard'),()=>prompt('Copy your backup',t))};
+  $('#im').onclick=()=>{const t=prompt('Paste backup JSON');if(!t)return;try{S=Object.assign(fresh(),JSON.parse(t));save();show('prog');toast('Imported')}catch(e){toast('Invalid backup')}};
+  $('#rs').onclick=()=>{if(confirm('Erase all Life HQ data?')){S=fresh();save();location.reload()}};
+}
+/* ---------- Homestead (3D) ---------- */
+let G=null,build=false,rot=0;
+function hud(){const af=t=>S.res.tires>=COST[t].tires&&S.res.earth>=COST[t].earth,L={wall:'Wall',cistern:'Cistern',panel:'Solar panel',battery:'Battery',greenhouse:'Greenhouse',greywater:'Greywater bed'};
+  $('#hud').innerHTML=`<div>🛞 ${S.res.tires} · 🟫 ${S.res.earth} · 🥬 ${S.res.food||0}</div>`+Object.keys(COST).map(t=>`<button class="btn ${build===t?'pri':''}" data-b="${t}" ${af(t)||build===t?'':'disabled'}>${build===t?'Cancel':L[t]} <small>${COST[t].tires}🛞 ${COST[t].earth}🟫</small></button>`).join('')+(build?'<button class="btn" id="br">Rotate</button>':'')+(S.sim.crop>=100?'<button class="btn pri" id="hv">Harvest crops</button>':'')+`<div id="sim">${simTxt}</div><div class="mut" id="clk"></div>`;
+  document.querySelectorAll('[data-b]').forEach(b=>b.onclick=()=>{build=build===b.dataset.b?false:b.dataset.b;ghostSet();hud()});if($('#br'))$('#br').onclick=()=>{rot+=Math.PI/2};if($('#hv'))$('#hv').onclick=harvest;
+}
+function wallMesh(ghost){
+  const g=new THREE.Group(),m=new THREE.MeshLambertMaterial({color:0x4a3a30,transparent:ghost,opacity:ghost?.55:1}),c=new THREE.MeshLambertMaterial({color:0x9c7b5a,transparent:ghost,opacity:ghost?.55:1});
+  const tg=new THREE.CylinderGeometry(.5,.5,.4,14),cg=new THREE.CylinderGeometry(.34,.34,.42,12);
+  for(let r=0;r<3;r++)for(let i=-1;i<=1;i++){const x=i*1+(r%2?.5:0);if(Math.abs(x)>1.01&&r%2)continue;const a=new THREE.Mesh(tg,m),b=new THREE.Mesh(cg,c);a.position.set(x,.2+r*.4,0);b.position.copy(a.position);g.add(a,b)}
+  return g;
+}
+function initGL(){
+  const cv=$('#cv'),box=$('#hs'),R=new THREE.WebGLRenderer({canvas:cv,antialias:true}),sc=new THREE.Scene(),cam=new THREE.PerspectiveCamera(50,1,.1,500);
+  const sun=new THREE.DirectionalLight(0xfff2d6,1),amb=new THREE.AmbientLight(0x8899aa,.55);sc.add(sun,amb);
+  const gr=new THREE.Mesh(new THREE.PlaneGeometry(200,200),new THREE.MeshLambertMaterial({color:0xc9a46e}));gr.rotation.x=-Math.PI/2;sc.add(gr);
+  const plot=new THREE.Mesh(new THREE.PlaneGeometry(18,18),new THREE.MeshLambertMaterial({color:0xb8905a}));plot.rotation.x=-Math.PI/2;plot.position.y=.01;sc.add(plot);
+  const grid=new THREE.GridHelper(18,12,0x7a5a36,0x9a7448);grid.position.y=.02;sc.add(grid);
+  const rm=new THREE.MeshLambertMaterial({color:0x8d7a6a}),mm=new THREE.MeshLambertMaterial({color:0x7d6a62}),cm=new THREE.MeshLambertMaterial({color:0x4f7a4a});
+  for(let i=0;i<9;i++){const a=i/9*Math.PI*1.1+Math.PI*1.05,mt=new THREE.Mesh(new THREE.ConeGeometry(14+(i%3)*5,18+(i*7%11),6),mm);mt.position.set(Math.cos(a)*85,6,Math.sin(a)*85-20);sc.add(mt)}
+  for(let i=0;i<24;i++){const x=(Math.sin(i*12.9)*43),z=(Math.cos(i*7.3)*43);if(Math.abs(x)<11&&Math.abs(z)<11)continue;
+    if(i%3){const k=new THREE.Mesh(new THREE.DodecahedronGeometry(.5+i%4*.25),rm);k.position.set(x,.3,z);sc.add(k)}else{const c=new THREE.Mesh(new THREE.CylinderGeometry(.25,.3,2.2,8),cm);c.position.set(x,1.1,z);sc.add(c)}}
+  const placed=new THREE.Group();sc.add(placed);
+  const ghost=new THREE.Group();ghost.visible=false;sc.add(ghost);
+  G={R,sc,cam,sun,amb,placed,ghost,gr,box,th:.8,ph:.9,d:22};
+  S.walls.forEach(w=>addWall(w));
+  const ray=new THREE.Raycaster(),mv=new THREE.Vector2();let down=null,drag=false;
+  const hit=e=>{const r=cv.getBoundingClientRect();mv.set((e.clientX-r.left)/r.width*2-1,-((e.clientY-r.top)/r.height)*2+1);ray.setFromCamera(mv,cam);const h=ray.intersectObject(gr)[0];if(!h)return null;return{x:Math.max(-8,Math.min(8,Math.round(h.point.x/1.5)*1.5)),z:Math.max(-8,Math.min(8,Math.round(h.point.z/1.5)*1.5))}};
+  cv.onpointerdown=e=>{down={x:e.clientX,y:e.clientY};drag=false;cv.setPointerCapture(e.pointerId)};
+  cv.onpointermove=e=>{if(down&&e.buttons){const dx=e.clientX-down.x,dy=e.clientY-down.y;if(Math.abs(dx)+Math.abs(dy)>5)drag=true;if(drag){G.th-=dx*.006;G.ph=Math.max(.25,Math.min(1.45,G.ph+dy*.005));down={x:e.clientX,y:e.clientY}}}
+    if(build){const p=hit(e);ghost.visible=!!p;if(p){ghost.position.set(p.x,0,p.z);ghost.rotation.y=rot}}};
+  cv.onpointerup=e=>{if(!drag&&build){const p=hit(e);if(p)place(p)}down=null};
+  cv.onwheel=e=>{e.preventDefault();G.d=Math.max(8,Math.min(60,G.d*(1+e.deltaY*.001)))};
+  function place(p){const C=COST[build];if(!C||S.res.tires<C.tires||S.res.earth<C.earth){toast('Not enough resources');return}
+    if(S.walls.some(w=>Math.abs(w.x-p.x)<1.4&&Math.abs(w.z-p.z)<1.4)){toast('That spot is taken');return}
+    S.res.tires-=C.tires;S.res.earth-=C.earth;const w={x:p.x,z:p.z,r:rot,t:build};S.walls.push(w);addWall(w);save();toast('Built: '+build);
+    if(S.res.tires<C.tires||S.res.earth<C.earth){build=false;ghostSet()}hud()}
+  addEventListener('resize',fit);fit();hud();(function loop(){requestAnimationFrame(loop);if(!$('#home').classList.contains('hide'))frame()})();
+}
+function partMesh(t,ghost){if(!t||t==='wall')return wallMesh(ghost);
+  const g=new THREE.Group(),M=c=>new THREE.MeshLambertMaterial({color:c,transparent:ghost,opacity:ghost?.55:1}),B=(geo,c,y)=>{const m=new THREE.Mesh(geo,M(c));m.position.y=y;g.add(m);return m};
+  if(t==='cistern')B(new THREE.CylinderGeometry(.6,.6,1.4,16),0x5d7f93,.7);
+  if(t==='greywater'){B(new THREE.BoxGeometry(1.8,.2,1.3),0x9a9a92,.1);B(new THREE.BoxGeometry(1.6,.2,1.1),0x6e8b5a,.25)}
+  if(t==='battery')B(new THREE.BoxGeometry(.9,.7,.6),0x3d7a4a,.35);
+  if(t==='greenhouse'){B(new THREE.BoxGeometry(2,.2,1.2),0x5a3f2a,.1);B(new THREE.BoxGeometry(1.8,.3,1),0x4f8a3f,.3);const gl=new THREE.Mesh(new THREE.BoxGeometry(2.4,1.3,1.6),new THREE.MeshLambertMaterial({color:0xbfe8e4,transparent:true,opacity:.35}));gl.position.y=.65;g.add(gl)}
+  if(t==='panel'){B(new THREE.BoxGeometry(.08,.7,.08),0x555555,.35);B(new THREE.BoxGeometry(1.3,.05,.9),0x1f3a6e,.75).rotation.x=-.6}
+  return g}
+function ghostSet(){if(!G)return;G.ghost.clear();if(build)G.ghost.add(partMesh(build,true))}
+function addWall(w){const m=partMesh(w.t,false);m.position.set(w.x,0,w.z);m.rotation.y=w.r;G.placed.add(m)}
+/* simplified balances: rain -> roof (needs a wall) -> cistern; sun -> panels -> battery -> household load */
+let lastT=0,rain=0,simTxt='',sv=0,wasR=false;
+function harvest(){const gh=S.walls.filter(w=>w.t==='greenhouse').length;if(!(S.sim.crop>=100))return;S.res.food=(S.res.food||0)+5*gh;S.sim.crop=0;S.hist.unshift({t:Date.now(),label:'Harvest',msg:'+'+5*gh+' food'});toast('Harvested '+5*gh+' food');save();hud()}
+function simStep(h){const n=Date.now(),dt=lastT?Math.min(2,(n-lastT)/1000):0;lastT=n;
+  const c=t=>S.walls.filter(w=>w.t===t).length,sh=S.walls.some(w=>!w.t||w.t==='wall'),sm=S.sim,wc=c('cistern')*30,bc=c('battery')*20;
+  if(rain<=0&&Math.random()<dt/60)rain=8;
+  if(rain>0){rain-=dt;if(sh)sm.water+=dt*2*.8}
+  sm.water=Math.max(0,Math.min(wc,sm.water-(sh?dt*.05*(c('greywater')?.4:1):0)));   // a greywater bed treats and returns ~60% of household use
+  sm.power=Math.max(0,Math.min(bc,sm.power+(c('panel')*Math.max(0,h)*.6-(sh?.15:0))*dt));
+  const gh=c('greenhouse');sm.crop=sm.crop||0;   // crops need water + power; growth just pauses without them
+  if(gh&&sm.crop<100&&sm.water>.1*gh*dt&&sm.power>.1*gh*dt){sm.crop=Math.min(100,sm.crop+.8*gh*dt);sm.water-=.1*gh*dt;sm.power-=.1*gh*dt}
+  const all=['wall','cistern','panel','battery','greenhouse','greywater'].every(t=>t==='wall'?sh:c(t)>0);
+  if(all&&sm.water>1&&sm.power>1)sm.stable=(sm.stable||0)+dt;   // seconds the whole system runs on its own
+  const rd=sm.crop>=100;if(rd!==wasR){wasR=rd;hud()}
+  if((sv+=dt)>5){sv=0;save()}
+  simTxt=`💧 ${sm.water.toFixed(0)}/${wc} · ⚡ ${sm.power.toFixed(0)}/${bc}${rain>0?' · 🌧 rain':''}${sh&&bc&&sm.power<1?' · household dark':''}${gh?` · 🌱 ${sm.crop.toFixed(0)}%`:''}`}
+function fit(){if(!G)return;const b=G.box;G.R.setSize(b.clientWidth,b.clientHeight,false);G.cam.aspect=b.clientWidth/b.clientHeight;G.cam.updateProjectionMatrix()}
+function frame(){
+  const day=(Date.now()/(86400000/3))%1,a=day*Math.PI*2-Math.PI/2,h=Math.sin(a);   // 1 real day = 3 game days
+  G.sun.position.set(Math.cos(a)*40,Math.max(h,.05)*40,15);G.sun.intensity=Math.max(.12,h*1.1);G.amb.intensity=.25+Math.max(0,h)*.4;
+  const sky=new THREE.Color().setHSL(.58,.5,.12+Math.max(0,h)*.5);G.sc.background=sky;
+  const c=G.cam;c.position.set(Math.sin(G.th)*Math.cos(G.ph)*G.d,Math.sin(G.ph)*G.d,Math.cos(G.th)*Math.cos(G.ph)*G.d);c.lookAt(0,0,0);
+  simStep(h);G.R.render(G.sc,c);const sx=$('#sim');if(sx)sx.textContent=simTxt;const k=$('#clk');if(k)k.textContent=(h>0?'☀ Day ':'☾ Night ')+(Math.floor(Date.now()/(86400000/3))%1000);
+}
+/* ---------- nav ---------- */
+function show(s){['dash','habits','home','prog'].forEach(x=>$('#'+x).classList.toggle('hide',x!==s));
+  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.s===s));
+  if(s==='dash')dash();if(s==='habits')habits();if(s==='prog')prog();
+  if(s==='home'){if(!G)initGL();else{fit();hud()}}}
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>show(b.dataset.s));
+show('dash');
+</script></body></html>
