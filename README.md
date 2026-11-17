@@ -16,6 +16,8 @@ Open `index.html` in a desktop browser with WebGL and internet access. The app u
 
 Walk straight ahead from spawn to reach the starter Earthship. Open the door and walk inside. The camera moves closer near walls and ceilings. Use the adjacent build plot to spend tires and earth earned through tasks and habits. A green preview marks a valid placement and a red preview marks an occupied or unaffordable placement.
 
+Each build part has a real-world guide covering planning, installation and verification. Open **Build**, select a part marked **Study**, and pass the question at the end of each section to unlock placement. Unlocks are saved with your progress and included in backups. Use **Review guide** to revisit a completed lesson. Existing builds remain in place when opening an older save. The guides link to primary sources and identify where a real installation needs site-specific design or qualified trades.
+
 The dashboard, habit trackers, progress history, and water, power, and crop simulation use the original `lifehq.v1` browser save. Existing structures retain their original positions and rotations. The starter Earthship is always present and is separate from the resource simulation. Use **Progress** to export and import a backup when moving to another browser or origin.
 
 ## Limitations

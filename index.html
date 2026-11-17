@@ -37,20 +37,28 @@ input[type=text]{flex:1;min-width:160px;padding:8px 10px;border-radius:8px;borde
 #timer div{background:var(--card);padding:28px;border-radius:14px;text-align:center;max-width:320px}
 #timer h1{font-size:48px;margin:6px 0}
 small,.mut{color:var(--mut)}
+
+#build-guide{width:min(640px,calc(100% - 24px));max-height:calc(100% - 32px);padding:22px;border:1px solid var(--line);border-radius:14px;color:var(--ink);background:var(--card)}
+#build-guide::backdrop{background:#1b1513b8}#build-guide a{color:var(--acc)}
+.guide-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.guide-top h2{margin:2px 0 0}#build-guide h3{margin:16px 0 0}
+#build-guide fieldset{margin:16px 0 0;border:1px solid var(--line);border-radius:8px}
+#build-guide label{display:block;padding:5px 0;cursor:pointer}
+.guide-feedback{color:var(--acc);min-height:1.4em;margin:6px 0}
 </style></head><body>
 <nav><b>Life HQ</b><button data-s="dash" class="on">Dashboard</button><button data-s="habits">Habits</button><button data-s="home">Homestead</button><button data-s="prog">Progress</button></nav>
 <main>
 <section id="dash"></section><section id="habits" class="hide"></section>
 <section id="home" class="hide"><div id="hs"><canvas id="cv" tabindex="0" aria-label="Third-person homestead"></canvas><div class="hud" id="hud"></div><div class="game-help"><strong id="hint"></strong><span>WASD Walk · Drag Orbit · Scroll Zoom · Space Jump · E Interact · B Build · R Rotate · Left click Place</span></div></div></section>
 <section id="prog" class="hide"></section>
-</main><div id="toast"></div><div id="timer" class="hide"></div>
+</main><dialog id="build-guide" aria-labelledby="guide-title"></dialog><div id="toast"></div><div id="timer" class="hide"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 const COLS=['Inbox','Next Actions','Scheduled','Projects','Waiting For','Someday/Maybe','Today'];
 const COST={wall:{tires:4,earth:6},cistern:{tires:2,earth:4},panel:{tires:1,earth:3},battery:{tires:2,earth:3},greenhouse:{tires:3,earth:8},greywater:{tires:2,earth:5}},K='lifehq.v1';
 const COLORS=['#c0623a','#6b8f55','#4f7ea8','#b58a2a'];
 let S;
-function fresh(){return{v:1,tasks:[],habits:[{id:'h1',name:'Meditate',color:COLORS[0]},{id:'h2',name:'Exercise',color:COLORS[1]},{id:'h3',name:'Study',color:COLORS[2]}],log:{},res:{tires:0,earth:0},walls:[],sim:{water:0,power:0},hist:[],odds:[70,20,8,2],month:new Date().toISOString().slice(0,7)}}
+function fresh(){return{v:1,tasks:[],habits:[{id:'h1',name:'Meditate',color:COLORS[0]},{id:'h2',name:'Exercise',color:COLORS[1]},{id:'h3',name:'Study',color:COLORS[2]}],log:{},res:{tires:0,earth:0},walls:[],lessons:{},sim:{water:0,power:0},hist:[],odds:[70,20,8,2],month:new Date().toISOString().slice(0,7)}}
 function load(){try{const j=localStorage.getItem(K);S=j?Object.assign(fresh(),JSON.parse(j)):fresh()}catch(e){S=fresh()}}
 function save(){try{localStorage.setItem(K,JSON.stringify(S))}catch(e){}}
 load();
@@ -113,6 +121,114 @@ function prog(){
 /* ---------- Homestead (3D) ---------- */
 let G=null,build=false,rot=0,selection='wall';
 const PART_LABEL={wall:'Wall',cistern:'Cistern',panel:'Solar panel',battery:'Battery',greenhouse:'Greenhouse',greywater:'Greywater bed'};
+// Increment a guide's version when its required reading or checks change.
+const GUIDES = {
+  wall: {version:1, sources:[
+    ['Earthship Biotecture tire wall method','https://earthship.com/2018/09/13/how-to-pound-tires-and-build-tire-walls/'],
+    ['Earthship Academy and hands-on training','https://earthship.com/learn/']
+  ], sections:[
+    ['Plan the wall','Decide whether the wall carries a roof, retains earth, or acts as a freestanding partition. Draw the roof-to-foundation load path, openings, and finish thickness. Ask the building department how it reviews alternative materials and have a structural designer specify the footing, allowable soil, bonding, reinforcement and roof connections. For a bermed wall, design drainage and waterproofing before placing the first tire.',
+      'What needs to be designed before building a bermed wall?', ['Only the interior finish','Structure, waterproofing and drainage','Only the height of each tire'],1],
+    ['Make and lay a test course','Stage sound tires sorted by size, suitable fill, a shovel, sledge, level, string line and eye and hand protection. On a prepared level base, center a tire on the layout, shovel soil into the tire and pound it outward into the sidewall cavity. Add soil and repeat until the cavity is packed and the top stays level. Check the test unit against the approved compaction and dimension criteria. Work from the first course upward, offsetting joints and checking each unit against the line before starting the next course.',
+      'Where should the soil be compacted during tire filling?', ['Only on the flat top','Only in the central opening','Throughout the tire, including under its sidewalls'],2],
+    ['Tie in, protect and inspect','Build opening frames, roof bearing and the top bond or tie detail from the approved drawings. Schedule inspections while connections are visible. Pack voids and finish exposed faces using specified compatible materials. Inspect below-grade waterproofing, protection and drainage before backfilling. Check for water intrusion after storms and investigate movement or recurring cracks.',
+      'When should you inspect the drainage and waterproofing?', ['Before backfill hides them','After planting the berm','Only if plaster cracks'],0]
+  ]},
+  cistern: {version:1,sources:[
+    ['EPA rainwater harvesting design examples','https://www.epa.gov/system/files/documents/2022-04/green-infrastructure-toolbox_rainwater-harvesting.pdf']
+  ],sections:[
+    ['Size the catchment and tank','Decide what the water will supply and confirm local collection and plumbing requirements. Estimate gross gallons from roof area in square feet × rain in inches × 0.623, then reduce for actual losses. For example, 500 square feet in a one-inch storm yields about 312 gallons before losses. Compare monthly rainfall and demand, especially through dry spells, before picking a rated tank.',
+      'What does the roof-area calculation estimate?', ['The daily demand','The storm yield before losses','The required pump pressure'],1],
+    ['Assemble the water path','Draw the route from roof to gutter, downspout, debris screen, first-flush diversion and opaque covered tank. Use the tank manufacturer’s base and anchorage details for a full tank. Provide screened vents and inlets, a cleanout, a draw-off, and a screened overflow that leads to an approved discharge away from the foundation. Keep the nonpotable plumbing separate and labeled.',
+      'Where should the overflow discharge?', ['Into the footing trench','Into a drinking-water pipe','To an approved outlet away from the foundation'],2],
+    ['Test and maintain','Test inflow and overflow with clean water before relying on rain. Check the base for settlement and fittings for leaks. Clean gutters, screens and first-flush equipment regularly and follow the manufacturer’s tank service instructions. For drinking water, work with the health authority on treatment, testing and plumbing protection.',
+      'What should you test before the first storm?', ['Both inflow and overflow','Only the tank lid','Only the faucet color'],0]
+  ]},
+  panel: {version:1,sources:[
+    ['U.S. Department of Energy guide to going solar','https://www.energy.gov/cmei/systems/articles/walk-me-through-it-step-step-guide-consumers-going-solar'],
+    ['U.S. Department of Energy permitting and inspection','https://www.energy.gov/cmei/systems/permitting-and-inspection-rooftop-solar']
+  ],sections:[
+    ['Measure loads and sunlight','Collect a year of electric bills or estimate daily watt-hours by multiplying appliance watts by hours used. Identify the months when supply is hardest to meet. Map shade across seasons and decide between a roof and ground array. For roof mounting, check roof age and condition, available area, service access and structural capacity.',
+      'What helps size an array for year-round use?', ['A single sunny afternoon','Seasonal loads and shade','The color of the inverter'],1],
+    ['Design and install the system','Ask a qualified installer for an array layout, production estimate, equipment list and one-line electrical diagram. Confirm the racking matches the roof or ground foundation and the site’s wind and snow loads. The installer obtains applicable approvals, locates supports, installs the mounting system and roof flashing where needed, attaches modules, and completes grounding, wiring, disconnects and inverter connections per approved plans and equipment instructions.',
+      'What should be checked before ordering racking?', ['Roof or foundation compatibility and site loads','Only the module color','Only the electricity bill'],0],
+    ['Commission and monitor','Have the installer verify connections, labeling, shutdown and output, and arrange inspection. For grid-connected systems, wait for utility authorization before operating in parallel. Record baseline production and use the monitoring system to spot a failed inverter or a drop in production.',
+      'What must be in place before grid-parallel operation?', ['A new Wi-Fi password','A full battery','Utility authorization'],2]
+  ]},
+  battery: {version:1,sources:[
+    ['U.S. Department of Energy solar and resilience','https://www.energy.gov/cmei/systems/solar-and-resilience-basics'],
+    ['U.S. Department of Energy storage fundamentals','https://www.energy.gov/cmei/systems/solar-integration-solar-energy-and-storage-basics']
+  ],sections:[
+    ['Size for energy and power','List essential circuits, operating watts, starting surges and hours of runtime. Add watt-hours and convert to kWh for usable energy. A steady 300 W load for ten hours uses 3 kWh before losses and reserve. Check continuous output and surge ratings separately, then decide how the battery will recharge during an outage.',
+      'What determines whether a battery can start a motor?', ['Energy capacity alone','The system’s surge power rating','The mounting height'],1],
+    ['Choose compatible equipment and location','Have a qualified installer select a compatible listed battery, inverter and backup controls. Include isolation from the utility during backup and a way to limit backed-up loads. Confirm the approved location, clearances, access, mounting and operating temperature with the installer and authority reviewing the project. The installer mounts and connects the equipment following the approved design.',
+      'Why does a grid-connected backup system need isolation?', ['To avoid energizing utility lines during an outage','To increase roof area','To stop the solar panels from getting hot'],0],
+    ['Commission the backup mode','Have the installer configure reserve charge and backed-up circuits. During a supervised outage test, verify switchover, motor startup, battery monitoring and restoration to grid operation. Record alerts and the shutdown location. Check the maintenance schedule and revisit sizing when you add major loads.',
+      'What should a supervised outage test verify?', ['Just the battery’s appearance','Only Wi-Fi speed','Transfer, startup loads and return to the grid'],2]
+  ]},
+  greenhouse: {version:1,sources:[
+    ['Penn State Extension greenhouse production','https://extension.psu.edu/greenhouse-production'],
+    ['University of Minnesota Extension heat and ventilation','https://blog-fruit-vegetable-ipm.extension.umn.edu/2024/04/prepare-your-high-tunnel-for-hot-summer.html']
+  ],sections:[
+    ['Choose the site and growing season','Pick crops and decide which months you want to grow. Observe winter shade and summer heat, check how water drains after rain, and locate irrigation and electrical service. Mark space for doors, beds, aisles and ventilation. Select a frame and foundation suitable for local wind and snow loads.',
+      'Which checks belong in site selection?', ['Shade, drainage, access and weather loads','Only the door color','Only the seed packet spacing'],0],
+    ['Build the shell and install irrigation','Stake the footprint, square it by comparing diagonals, and prepare the specified level base and anchors. Assemble and brace the frame before attaching glazing according to its fastening and expansion instructions. Install operable vents or a sized exhaust and intake system, then run irrigation with accessible shutoffs and check that beds drain.',
+      'When should you brace the frame?', ['After the plants mature','Before attaching the glazing','Only after a storm'],1],
+    ['Test the growing environment','Put a thermometer near canopy height. On a sunny day, measure peak temperature and check that vents or fans bring it down. Run irrigation and compare output at the first and last emitters. Adjust ventilation, shade and irrigation before filling the space with plants. Recheck anchors, glazing fasteners and controls after severe weather.',
+      'How can you check irrigation distribution?', ['Look at the tank color','Measure one aisle','Compare output at the first and last emitters'],2]
+  ]},
+  greywater: {version:1,sources:[
+    ['EPA WaterSense onsite alternative water sources','https://www.epa.gov/system/files/documents/2023-05/ws-commercial-watersense-at-work_Section_8_Alternative_Water.pdf'],
+    ['California DWR greywater planning example','https://water.ca.gov/-/media/DWR-Website/Web-Pages/Programs/Water-Use-And-Efficiency/Urban-Water-Use-Efficiency/MWELO-Files/MWELO-Guidebook/1--Model-Water-Efficient-Landscape-Ordinance-Guidebook.pdf']
+  ],sections:[
+    ['Choose an approved source and use','Ask local plumbing and health officials which fixtures and end uses qualify. A laundry-to-landscape system is one possible starting point where allowed. Identify eligible washer discharge separately from toilets, kitchen waste and loads with bleach or contamination. Compare daily flow with plant demand, soil infiltration and setbacks from buildings, wells and waterways.',
+      'What should you verify before designing the bed?', ['Only the washer brand','Approved sources, end uses and setbacks','Only the plant height'],1],
+    ['Plan a diversion and distribution path','Draw a labeled diversion back to sewer or septic and an approved path to covered subsurface outlets or mulch basins. Put valves and service points where they can be reached. Size the distribution area for the approved flow and soil conditions. Follow local requirements for connections, separation from potable plumbing, and permitted plants. Have a qualified plumber make regulated connections.',
+      'Where should unsuitable wash loads go?', ['Through the diversion to sewer or septic','To a spray sprinkler','To the drinking-water cistern'],0],
+    ['Commission with clean water','Run a test and check for leaks, even distribution, pooling and runoff. Test the bypass as well. Inspect discharge points for clogs and adjust for season and irrigation demand. Switch to the approved disposal path when the bed is saturated or needs maintenance.',
+      'What should you do when the receiving bed is saturated?', ['Increase the flow','Cover the puddles','Switch to the approved disposal path'],2]
+  ]}
+};
+
+function guidePassed(part) {
+  return S.lessons?.[part] === GUIDES[part].version;
+}
+function openGuide(part) {
+  const dialog = $('#build-guide'), guide = GUIDES[part];
+  const review = guidePassed(part);
+  let step = 0;
+  setBuild(false);
+  G.keys.clear();
+  const render = () => {
+    const [title, text, question, answers, correct] = guide.sections[step];
+    dialog.innerHTML = `<div class="guide-top"><div><small>${step+1} / ${guide.sections.length} · ${review?'Completed':'Required reading'}</small><h2 id="guide-title">${PART_LABEL[part]}</h2></div>
+      <button class="btn" type="button" data-close>Close</button></div>
+      <h3 tabindex="-1">${title}</h3><p>${text}</p>
+      <details><summary>Sources and further reading</summary><ul>${guide.sources.map(([label,url])=>`<li><a href="${url}" target="_blank" rel="noopener noreferrer">${label}</a></li>`).join('')}</ul></details>
+      <form><fieldset><legend>${question}</legend>${answers.map((answer,i)=>`<label><input type="radio" name="answer" value="${i}" required> ${answer}</label>`).join('')}</fieldset>
+      <p class="guide-feedback" role="status"></p><button class="btn pri">${step===guide.sections.length-1?(review?'Finish review':'Unlock '+PART_LABEL[part]):'Check answer and continue'}</button></form>`;
+    dialog.scrollTop = 0;
+    dialog.querySelector('h3').focus();
+    dialog.querySelector('[data-close]').onclick = () => dialog.close();
+    dialog.querySelector('form').onsubmit = e => {
+      e.preventDefault();
+      if (new FormData(e.currentTarget).get('answer') !== String(correct)) {
+        dialog.querySelector('.guide-feedback').textContent = 'Try again. Revisit the reading above.';
+        return;
+      }
+      if (++step < guide.sections.length) {render();return}
+      S.lessons = {...S.lessons,[part]:guide.version};
+      save();
+      dialog.close();
+      setBuild(part);
+      if(!review)toast(PART_LABEL[part]+' unlocked');
+    };
+  };
+  dialog.onclose=()=>$('#cv').focus({preventScroll:true});
+  dialog.showModal();
+  render();
+}
+
 function canBuild(t){return S.res.tires>=COST[t].tires&&S.res.earth>=COST[t].earth}
 function setBuild(t){
   build=t;
@@ -124,10 +240,11 @@ function setBuild(t){
 function hud(){
   $('#hud').innerHTML=`<div>🛞 ${S.res.tires} · 🟫 ${S.res.earth} · 🥬 ${S.res.food||0}</div>
   <button class="btn ${build?'pri':''}" id="bm" aria-pressed="${!!build}">Build (B)</button>`+
-  (build?Object.keys(COST).map(t=>`<button class="btn ${build===t?'pri':''}" data-b="${t}" aria-pressed="${build===t}">${PART_LABEL[t]} <small>${COST[t].tires}🛞 ${COST[t].earth}🟫</small></button>`).join('')+'<button class="btn" id="br">Rotate (R)</button>':'')+
+  (build?Object.keys(COST).map(t=>`<button class="btn ${build===t?'pri':''}" data-b="${t}" aria-pressed="${build===t}">${PART_LABEL[t]}${guidePassed(t)?'':' · Study'} <small>${COST[t].tires}🛞 ${COST[t].earth}🟫</small></button>`).join('')+'<button class="btn" id="guide-button">'+(guidePassed(build)?'Review guide':'Read to unlock')+'</button>'+(guidePassed(build)?'<button class="btn" id="br">Rotate (R)</button>':''):'')+
   (S.sim.crop>=100?'<button class="btn pri" id="hv">Harvest crops</button>':'')+`<div id="sim">${simTxt}</div><div class="mut" id="clk"></div>`;
   $('#bm').onclick=()=>setBuild(build?false:selection);
-  document.querySelectorAll('[data-b]').forEach(b=>b.onclick=()=>setBuild(b.dataset.b));
+  document.querySelectorAll('[data-b]').forEach(b=>b.onclick=()=>guidePassed(b.dataset.b)?setBuild(b.dataset.b):openGuide(b.dataset.b));
+  if($('#guide-button'))$('#guide-button').onclick=()=>openGuide(build);
   if($('#br'))$('#br').onclick=()=>{rot=(rot+Math.PI/2)%(2*Math.PI)};
   if($('#hv'))$('#hv').onclick=harvest;
 }
@@ -304,7 +421,7 @@ function initGL(){
     return overlaps(bounds,G.solids)||bounds.intersectsBox(bodyBounds(p.x,0,p.z));
   };
   const preview=()=>{
-    const p=build&&hover&&hit(hover);
+    const p=build&&guidePassed(build)&&hover&&hit(hover);
     ghost.visible=!!p;
     if(!p)return;
     ghost.position.set(p.x,.025,p.z);
@@ -331,9 +448,10 @@ function initGL(){
   cv.onpointerup=e=>{
     const click=down?.id===e.pointerId&&!down.drag&&e.button===0;
     down=null;
-    if(!click||!build)return;
+    if(!click||!build||$('#build-guide').open)return;
     const w=hit(e);
     if(!w)return;
+    if(!guidePassed(build)){openGuide(build);return}
     if(blocked(w)){toast('That spot is occupied');return}
     if(!canBuild(build)){toast('Not enough resources');return}
     S.res.tires-=COST[build].tires;
@@ -352,7 +470,7 @@ function initGL(){
   },{passive:false});
   const movement=['KeyW','KeyA','KeyS','KeyD'];
   addEventListener('keydown',e=>{
-    if(box.closest('.hide')||e.ctrlKey||e.metaKey||e.altKey)return;
+    if(box.closest('.hide')||$('#build-guide').open||e.ctrlKey||e.metaKey||e.altKey)return;
     if(e.target.closest?.('input, textarea, select, [contenteditable]'))return;
     if(e.code==='Space'&&e.target.closest?.('button'))return;
     if(![...movement,'Space','KeyB','KeyE','KeyR','Escape'].includes(e.code))return;
@@ -448,7 +566,7 @@ function ghostSet(){
   G.ghost.traverse(m=>{if(m.isMesh){m.geometry.dispose();m.material.dispose()}});
   G.ghost.clear();
   G.ghost.visible=false;
-  if(build)G.ghost.add(partMesh(build,true));
+  if(build&&guidePassed(build))G.ghost.add(partMesh(build,true));
 }
 function addWall(w){
   const m=partMesh(w.t,false),bounds=partBounds(w);
