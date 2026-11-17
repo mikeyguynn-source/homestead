@@ -45,6 +45,7 @@ small,.mut{color:var(--mut)}
 #build-guide fieldset{margin:16px 0 0;border:1px solid var(--line);border-radius:8px}
 #build-guide label{display:block;padding:5px 0;cursor:pointer}
 .guide-feedback{color:var(--acc);min-height:1.4em;margin:6px 0}
+.range-tool-photo{display:block;width:160px;max-width:100%;height:40px;object-fit:contain;margin:4px auto 0;background:#fff;border-radius:4px}
 </style></head><body>
 <nav><b>Life HQ</b><button data-s="dash" class="on">Dashboard</button><button data-s="habits">Habits</button><button data-s="home">Homestead</button><button data-s="prog">Progress</button></nav>
 <main>
@@ -195,10 +196,10 @@ const TOOLS = {
     'Which measurements help confirm a rectangle is square?', ['The two diagonals','The height of one stake','The length of one edge'],0],
   shovel: ['Shovel','Prepare a small digging area','Mark utility locations before disturbing ground. For ordinary hand digging in a cleared area, take small bites and move soil in light loads. Keep excavated soil clear of the edge.',
     'What should you check before disturbing the ground?', ['Soil color','Buried utility locations','The shovel handle color'],1],
-  popper: ['Range popper','Use the target game','The popper works from the blue pad at the northeast corner of the map. Equip it, walk onto the pad, and click the colored target. Each attempt uses one pop round.',
-    'Where can you use the range popper?', ['Inside the Earthship','Anywhere on the build plot','On the blue range pad'],2],
-  rounds: ['Pop rounds','Restock game ammo','Pop rounds are tokens for the target game. Once unlocked, restock up to ten free rounds from the Tools menu. The game tracks your shots and target hits.',
-    'Where do you restock pop rounds?', ['The Tools menu','The cistern','The greenhouse'],0]
+  popper: ['Ruger 10/22','Use the target game','The Ruger 10/22 works from the blue pad at the northeast corner of the map. Equip it, walk onto the pad, and click the colored target. Each attempt uses one .22 LR round.',
+    'Where can you use the Ruger 10/22?', ['Inside the Earthship','Anywhere on the build plot','On the blue range pad'],2],
+  rounds: ['.22 LR rounds','Restock game ammo','.22 LR rounds are tokens for the target game. Once unlocked, restock up to ten free rounds from the Tools menu. The game tracks your shots and target hits.',
+    'Where do you restock .22 LR rounds?', ['The Tools menu','The cistern','The greenhouse'],0]
 };
 for(const [id,[label,...section]] of Object.entries(TOOLS)){
   PART_LABEL[id]=label;
@@ -211,14 +212,14 @@ function toolMenu(){
   const stats=rangeStats();
   return Object.keys(TOOLS).map(id=>{
     const label=PART_LABEL[id], passed=guidePassed(id);
-    return `<button class="btn ${equipped===id?'pri':''}" data-tool="${id}">${label}${!passed?' · Study':id==='rounds'?' · Restock':equipped===id?' · Equipped':''}</button>`;
-  }).join('')+`<div>Range ammo ${stats.rounds} · Hits ${stats.hits}/${stats.shots}</div>`;
+    return `<button class="btn ${equipped===id?'pri':''}" data-tool="${id}">${label}${!passed?' · Study':id==='rounds'?' · Restock':equipped===id?' · Equipped':''}${id==='popper'?'<img class="range-tool-photo" src="https://ruger.com/productImages/32027/detail/1.jpg" alt="Ruger 10/22 with walnut stock">':''}</button>`;
+  }).join('')+`<div> .22 LR ammo ${stats.rounds} · Hits ${stats.hits}/${stats.shots}</div>`;
 }
 function selectTool(id){
   if(!guidePassed(id)){openGuide(id);return}
   if(id==='rounds'){
     S.range={...rangeStats(),rounds:10};
-    save();hud();toast('Restocked to 10 pop rounds');
+    save();hud();toast('Restocked to 10 .22 LR rounds');
     return;
   }
   equipped=equipped===id?null:id;
@@ -234,7 +235,7 @@ function toolClick(ray){
   const p=G.player.body.position;
   if(equipped==='popper'){
     if(Math.hypot(p.x-RANGE.x,p.z-RANGE.padZ)>1.8){toast('Stand on the blue pad in the northeast corner');return}
-    if(!guidePassed('rounds')||!rangeStats().rounds){toast('Unlock or restock Pop rounds in Tools');return}
+    if(!guidePassed('rounds')||!rangeStats().rounds){toast('Unlock or restock .22 LR rounds in Tools');return}
     const stats=rangeStats(), hit=ray.intersectObjects(G.rangeTarget)[0];
     stats.rounds--;stats.shots++;
     if(hit)stats.hits++;
@@ -283,7 +284,7 @@ function makeToolStations(){
 function toolHint(){
   if(equipped==='tape')return 'Tape measure · Click two ground points';
   if(equipped==='shovel')return 'Shovel · Click the soil patch near spawn';
-  if(equipped==='popper')return 'Range popper · Follow blue markers to the pad · Click the target';
+  if(equipped==='popper')return 'Ruger 10/22 · Follow blue markers to the pad · Click the target';
   return '';
 }
 
