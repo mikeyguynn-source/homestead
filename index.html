@@ -31,6 +31,7 @@ input[type=text]{flex:1;min-width:160px;padding:8px 10px;border-radius:8px;borde
 #cv{width:100%;height:100%;display:block;touch-action:none}
 .hud{position:absolute;left:10px;top:10px;right:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;pointer-events:none}
 .hud>*{pointer-events:auto;background:color-mix(in srgb,var(--card) 90%,transparent);border:1px solid var(--line);border-radius:8px;padding:5px 10px}
+.game-help{position:absolute;bottom:12px;left:12px;right:12px;display:grid;justify-items:start;gap:6px;pointer-events:none}.game-help>*{padding:6px 10px;border-radius:8px;background:#241d17e8;color:#fff5df;font-size:13px}.game-help strong:empty{display:none}
 #toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ok);color:#fff;padding:8px 16px;border-radius:20px;opacity:0;transition:opacity .25s;pointer-events:none;z-index:9}
 #timer{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:8}
 #timer div{background:var(--card);padding:28px;border-radius:14px;text-align:center;max-width:320px}
@@ -40,7 +41,7 @@ small,.mut{color:var(--mut)}
 <nav><b>Life HQ</b><button data-s="dash" class="on">Dashboard</button><button data-s="habits">Habits</button><button data-s="home">Homestead</button><button data-s="prog">Progress</button></nav>
 <main>
 <section id="dash"></section><section id="habits" class="hide"></section>
-<section id="home" class="hide"><div id="hs"><canvas id="cv"></canvas><div class="hud" id="hud"></div></div></section>
+<section id="home" class="hide"><div id="hs"><canvas id="cv" tabindex="0" aria-label="Third-person homestead"></canvas><div class="hud" id="hud"></div><div class="game-help"><strong id="hint"></strong><span>WASD Walk · Drag Orbit · Scroll Zoom · Space Jump · E Interact · B Build · R Rotate · Left click Place</span></div></div></section>
 <section id="prog" class="hide"></section>
 </main><div id="toast"></div><div id="timer" class="hide"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -106,14 +107,29 @@ function prog(){
   <small>Educational game only: simplified, not real construction guidance.</small>`;
   document.querySelectorAll('[data-o]').forEach(i=>i.onchange=()=>{const v=S.odds.slice();v[i.dataset.o]=+i.value;const [,a,b,c]=v;if(a+b+c>100){toast('Bonus odds can’t exceed 100%');prog();return}v[0]=100-a-b-c;S.odds=v;save();prog()});
   $('#ex').onclick=()=>{const t=JSON.stringify(S);navigator.clipboard&&navigator.clipboard.writeText(t).then(()=>toast('Backup copied to clipboard'),()=>prompt('Copy your backup',t))};
-  $('#im').onclick=()=>{const t=prompt('Paste backup JSON');if(!t)return;try{S=Object.assign(fresh(),JSON.parse(t));save();show('prog');toast('Imported')}catch(e){toast('Invalid backup')}};
+  $('#im').onclick=()=>{const t=prompt('Paste backup JSON');if(!t)return;try{const next=Object.assign(fresh(),JSON.parse(t));if(!Array.isArray(next.walls))throw new Error('Invalid structures');S=next;save();if(G)restoreParts();show('prog');toast('Imported')}catch(e){toast('Invalid backup')}};
   $('#rs').onclick=()=>{if(confirm('Erase all Life HQ data?')){S=fresh();save();location.reload()}};
 }
 /* ---------- Homestead (3D) ---------- */
-let G=null,build=false,rot=0;
-function hud(){const af=t=>S.res.tires>=COST[t].tires&&S.res.earth>=COST[t].earth,L={wall:'Wall',cistern:'Cistern',panel:'Solar panel',battery:'Battery',greenhouse:'Greenhouse',greywater:'Greywater bed'};
-  $('#hud').innerHTML=`<div>🛞 ${S.res.tires} · 🟫 ${S.res.earth} · 🥬 ${S.res.food||0}</div>`+Object.keys(COST).map(t=>`<button class="btn ${build===t?'pri':''}" data-b="${t}" ${af(t)||build===t?'':'disabled'}>${build===t?'Cancel':L[t]} <small>${COST[t].tires}🛞 ${COST[t].earth}🟫</small></button>`).join('')+(build?'<button class="btn" id="br">Rotate</button>':'')+(S.sim.crop>=100?'<button class="btn pri" id="hv">Harvest crops</button>':'')+`<div id="sim">${simTxt}</div><div class="mut" id="clk"></div>`;
-  document.querySelectorAll('[data-b]').forEach(b=>b.onclick=()=>{build=build===b.dataset.b?false:b.dataset.b;ghostSet();hud()});if($('#br'))$('#br').onclick=()=>{rot+=Math.PI/2};if($('#hv'))$('#hv').onclick=harvest;
+let G=null,build=false,rot=0,selection='wall';
+const PART_LABEL={wall:'Wall',cistern:'Cistern',panel:'Solar panel',battery:'Battery',greenhouse:'Greenhouse',greywater:'Greywater bed'};
+function canBuild(t){return S.res.tires>=COST[t].tires&&S.res.earth>=COST[t].earth}
+function setBuild(t){
+  build=t;
+  if(t)selection=t;
+  G.grid.visible=!!build;
+  ghostSet();
+  hud();
+}
+function hud(){
+  $('#hud').innerHTML=`<div>🛞 ${S.res.tires} · 🟫 ${S.res.earth} · 🥬 ${S.res.food||0}</div>
+  <button class="btn ${build?'pri':''}" id="bm" aria-pressed="${!!build}">Build (B)</button>`+
+  (build?Object.keys(COST).map(t=>`<button class="btn ${build===t?'pri':''}" data-b="${t}" aria-pressed="${build===t}">${PART_LABEL[t]} <small>${COST[t].tires}🛞 ${COST[t].earth}🟫</small></button>`).join('')+'<button class="btn" id="br">Rotate (R)</button>':'')+
+  (S.sim.crop>=100?'<button class="btn pri" id="hv">Harvest crops</button>':'')+`<div id="sim">${simTxt}</div><div class="mut" id="clk"></div>`;
+  $('#bm').onclick=()=>setBuild(build?false:selection);
+  document.querySelectorAll('[data-b]').forEach(b=>b.onclick=()=>setBuild(b.dataset.b));
+  if($('#br'))$('#br').onclick=()=>{rot=(rot+Math.PI/2)%(2*Math.PI)};
+  if($('#hv'))$('#hv').onclick=harvest;
 }
 function wallMesh(ghost){
   const g=new THREE.Group(),m=new THREE.MeshLambertMaterial({color:0x4a3a30,transparent:ghost,opacity:ghost?.55:1}),c=new THREE.MeshLambertMaterial({color:0x9c7b5a,transparent:ghost,opacity:ghost?.55:1});
@@ -121,33 +137,304 @@ function wallMesh(ghost){
   for(let r=0;r<3;r++)for(let i=-1;i<=1;i++){const x=i*1+(r%2?.5:0);if(Math.abs(x)>1.01&&r%2)continue;const a=new THREE.Mesh(tg,m),b=new THREE.Mesh(cg,c);a.position.set(x,.2+r*.4,0);b.position.copy(a.position);g.add(a,b)}
   return g;
 }
-function initGL(){
-  const cv=$('#cv'),box=$('#hs'),R=new THREE.WebGLRenderer({canvas:cv,antialias:true}),sc=new THREE.Scene(),cam=new THREE.PerspectiveCamera(50,1,.1,500);
-  const sun=new THREE.DirectionalLight(0xfff2d6,1),amb=new THREE.AmbientLight(0x8899aa,.55);sc.add(sun,amb);
-  const gr=new THREE.Mesh(new THREE.PlaneGeometry(200,200),new THREE.MeshLambertMaterial({color:0xc9a46e}));gr.rotation.x=-Math.PI/2;sc.add(gr);
-  const plot=new THREE.Mesh(new THREE.PlaneGeometry(18,18),new THREE.MeshLambertMaterial({color:0xb8905a}));plot.rotation.x=-Math.PI/2;plot.position.y=.01;sc.add(plot);
-  const grid=new THREE.GridHelper(18,12,0x7a5a36,0x9a7448);grid.position.y=.02;sc.add(grid);
-  const rm=new THREE.MeshLambertMaterial({color:0x8d7a6a}),mm=new THREE.MeshLambertMaterial({color:0x7d6a62}),cm=new THREE.MeshLambertMaterial({color:0x4f7a4a});
-  for(let i=0;i<9;i++){const a=i/9*Math.PI*1.1+Math.PI*1.05,mt=new THREE.Mesh(new THREE.ConeGeometry(14+(i%3)*5,18+(i*7%11),6),mm);mt.position.set(Math.cos(a)*85,6,Math.sin(a)*85-20);sc.add(mt)}
-  for(let i=0;i<24;i++){const x=(Math.sin(i*12.9)*43),z=(Math.cos(i*7.3)*43);if(Math.abs(x)<11&&Math.abs(z)<11)continue;
-    if(i%3){const k=new THREE.Mesh(new THREE.DodecahedronGeometry(.5+i%4*.25),rm);k.position.set(x,.3,z);sc.add(k)}else{const c=new THREE.Mesh(new THREE.CylinderGeometry(.25,.3,2.2,8),cm);c.position.set(x,1.1,z);sc.add(c)}}
-  const placed=new THREE.Group();sc.add(placed);
-  const ghost=new THREE.Group();ghost.visible=false;sc.add(ghost);
-  G={R,sc,cam,sun,amb,placed,ghost,gr,box,th:.8,ph:.9,d:22};
-  S.walls.forEach(w=>addWall(w));
-  const ray=new THREE.Raycaster(),mv=new THREE.Vector2();let down=null,drag=false;
-  const hit=e=>{const r=cv.getBoundingClientRect();mv.set((e.clientX-r.left)/r.width*2-1,-((e.clientY-r.top)/r.height)*2+1);ray.setFromCamera(mv,cam);const h=ray.intersectObject(gr)[0];if(!h)return null;return{x:Math.max(-8,Math.min(8,Math.round(h.point.x/1.5)*1.5)),z:Math.max(-8,Math.min(8,Math.round(h.point.z/1.5)*1.5))}};
-  cv.onpointerdown=e=>{down={x:e.clientX,y:e.clientY};drag=false;cv.setPointerCapture(e.pointerId)};
-  cv.onpointermove=e=>{if(down&&e.buttons){const dx=e.clientX-down.x,dy=e.clientY-down.y;if(Math.abs(dx)+Math.abs(dy)>5)drag=true;if(drag){G.th-=dx*.006;G.ph=Math.max(.25,Math.min(1.45,G.ph+dy*.005));down={x:e.clientX,y:e.clientY}}}
-    if(build){const p=hit(e);ghost.visible=!!p;if(p){ghost.position.set(p.x,0,p.z);ghost.rotation.y=rot}}};
-  cv.onpointerup=e=>{if(!drag&&build){const p=hit(e);if(p)place(p)}down=null};
-  cv.onwheel=e=>{e.preventDefault();G.d=Math.max(8,Math.min(60,G.d*(1+e.deltaY*.001)))};
-  function place(p){const C=COST[build];if(!C||S.res.tires<C.tires||S.res.earth<C.earth){toast('Not enough resources');return}
-    if(S.walls.some(w=>Math.abs(w.x-p.x)<1.4&&Math.abs(w.z-p.z)<1.4)){toast('That spot is taken');return}
-    S.res.tires-=C.tires;S.res.earth-=C.earth;const w={x:p.x,z:p.z,r:rot,t:build};S.walls.push(w);addWall(w);save();toast('Built: '+build);
-    if(S.res.tires<C.tires||S.res.earth<C.earth){build=false;ghostSet()}hud()}
-  addEventListener('resize',fit);fit();hud();(function loop(){requestAnimationFrame(loop);if(!$('#home').classList.contains('hide'))frame()})();
+const PART_SIZE = {
+  wall: [3, 1.2, 1], cistern: [1.2, 1.4, 1.2], panel: [1.3, 1.1, .9],
+  battery: [.9, .7, .6], greenhouse: [2.4, 1.3, 1.6], greywater: [1.8, .35, 1.3]
+};
+const PLAYER_RADIUS = .27;
+const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
+function solid(x, z, width, height, depth, bottom = 0) {
+  return new THREE.Box3(
+    new THREE.Vector3(x - width / 2, bottom, z - depth / 2),
+    new THREE.Vector3(x + width / 2, bottom + height, z + depth / 2)
+  );
 }
+function block(parent, color, x, y, z, width, height, depth) {
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth),
+    new THREE.MeshLambertMaterial({color}));
+  mesh.position.set(x, y, z);
+  parent.add(mesh);
+  return mesh;
+}
+function makePlayer(scene) {
+  const body = new THREE.Group();
+  const shirt = 0x45675d, skin = 0xbf8b69, pants = 0x383943, boots = 0x49342b;
+  const torso = new THREE.Mesh(new THREE.CylinderGeometry(.29, .22, .57, 8),
+    new THREE.MeshLambertMaterial({color: shirt}));
+  torso.position.y = 1.19;
+  torso.scale.z = .65;
+  body.add(torso);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(.16, 10, 7),
+    new THREE.MeshLambertMaterial({color: skin}));
+  head.position.y = 1.66;
+  head.scale.set(.88, 1.15, .9);
+  body.add(head);
+  block(body, 0x382d28, 0, 1.77, -.035, .24, .13, .23);
+  block(body, 0x92724e, 0, 1.21, -.17, .32, .39, .16);
+  block(body, boots, 0, .93, 0, .38, .1, .26);
+  const limbs = [-1, 1].map(side => {
+    const arm = new THREE.Group(), leg = new THREE.Group();
+    arm.position.set(side * .3, 1.43, 0);
+    leg.position.set(side * .107, .9, 0);
+    body.add(arm, leg);
+    block(arm, shirt, 0, -.12, 0, .14, .28, .15);
+    block(arm, skin, 0, -.37, 0, .115, .25, .12);
+    block(leg, pants, 0, -.36, 0, .175, .73, .19);
+    block(leg, boots, 0, -.82, .045, .18, .16, .28);
+    return {arm, leg};
+  });
+  scene.add(body);
+  return {body, limbs, stride: 0, vy: 0};
+}
+function makeEarthship() {
+  // Keep the starter house off the original build grid, including legacy footprints.
+  const x = 14, z = -3, group = new THREE.Group();
+  G.sc.add(group);
+  const wall = (color, dx, dz, width, height, depth, bottom = 0) => {
+    block(group, color, x + dx, bottom + height / 2, z + dz, width, height, depth);
+    G.solids.push(solid(x + dx, z + dz, width, height, depth, bottom));
+  };
+  const adobe = 0xb78359, trim = 0x654c37;
+  wall(adobe, 0, -3, 8, 2.8, .55);
+  for (const side of [-1, 1]) {
+    wall(adobe, side * 3.75, 0, .5, 2.8, 6);
+    wall(adobe, side * 3.25, 3, 1.5, 2.8, .42);
+    wall(adobe, side * 1.55, 3, 1.9, .67, .42);
+    wall(0x779996, side * 1.55, 3, 1.9, 1.44, .14, .67);
+    wall(trim, side * 1.55, 3.08, .075, 1.44, .1, .67);
+    wall(adobe, side * 1.55, 3, 1.9, .69, .42, 2.11);
+    wall(0x805a3d, side * 2.85, -1.8, .85, .52, 1.55);
+    block(group, 0x71874d, x + side * 2.85, .57, z - 1.8, .72, .14, 1.4);
+  }
+  wall(adobe, 0, 3, 1.2, .5, .42, 2.3);
+  wall(trim, 0, 0, 8.4, .24, 6.65, 2.8);
+  block(group, 0xa57e5b, x, -.045, z, 7.5, .11, 6.1);
+  const berm = new THREE.Mesh(new THREE.SphereGeometry(1, 12, 6),
+    new THREE.MeshLambertMaterial({color: 0xad835a, flatShading: true}));
+  berm.scale.set(4.8, 2, 2.1);
+  berm.position.set(x, -.35, z - 4.25);
+  group.add(berm);
+  G.solids.push(solid(x, z - 4.3, 8, 1.7, 2.6));
+  const door = block(group, 0x72503a, x, 1.15, z + 3, 1.19, 2.3, .21);
+  block(door, 0xcfad68, .39, -.06, .14, .075, .075, .11);
+  G.door = {mesh: door, x, z: z + 3, open: false, box: solid(x, z + 3, 1.2, 2.3, .25)};
+  const light = new THREE.PointLight(0xffdbab, .48, 9);
+  light.position.set(x, 2.4, z);
+  group.add(light);
+}
+function partBounds(w) {
+  const [width, height, depth] = PART_SIZE[w.t] || PART_SIZE.wall;
+  const angle = w.r || 0, c = Math.abs(Math.cos(angle)), s = Math.abs(Math.sin(angle));
+  return solid(w.x, w.z, width * c + depth * s, height, width * s + depth * c);
+}
+function bodyBounds(x, y, z) {
+  return solid(x, z, PLAYER_RADIUS * 2, 1.85, PLAYER_RADIUS * 2, y);
+}
+function overlaps(box, obstacles) {
+  return obstacles.some(obstacle => obstacle.intersectsBox(box));
+}
+function nearDoor() {
+  const p = G.player.body.position;
+  return Math.hypot(p.x - G.door.x, p.z - G.door.z) < 2;
+}
+function interact() {
+  const door = G.door, p = G.player.body.position;
+  if (!nearDoor()) {
+    toast('Walk up to the Earthship door');
+    return;
+  }
+  if (door.open && door.box.intersectsBox(bodyBounds(p.x, p.y, p.z))) {
+    toast('Step clear of the doorway');
+    return;
+  }
+  door.open = !door.open;
+  door.mesh.visible = !door.open;
+  if (door.open) G.solids.splice(G.solids.indexOf(door.box), 1);
+  else G.solids.push(door.box);
+}
+function initGL(){
+  const cv=$('#cv'),box=$('#hs'),R=new THREE.WebGLRenderer({canvas:cv,antialias:true}),sc=new THREE.Scene(),cam=new THREE.PerspectiveCamera(52,1,.08,160);
+  R.setPixelRatio(Math.min(devicePixelRatio, 2));
+  sc.fog = new THREE.FogExp2(0xb99b83, .014);
+  const sun=new THREE.DirectionalLight(0xffe3bb,1),amb=new THREE.HemisphereLight(0xddeaff,0xa98a6f,.75);
+  sc.add(sun,amb);
+  const gr=new THREE.Mesh(new THREE.PlaneGeometry(200,200),new THREE.MeshLambertMaterial({color:0xb99368}));gr.rotation.x=-Math.PI/2;sc.add(gr);
+  const plot=new THREE.Mesh(new THREE.PlaneGeometry(18,18),new THREE.MeshLambertMaterial({color:0xc6a274}));plot.rotation.x=-Math.PI/2;plot.position.y=.01;sc.add(plot);
+  const grid=new THREE.GridHelper(18,12,0x8d704e,0xa98960);grid.position.y=.02;grid.visible=false;sc.add(grid);
+  for(let i=0;i<14;i++){
+    const a=i/14*Math.PI*2;
+    const mesa=new THREE.Mesh(new THREE.CylinderGeometry(4+i%5,9+i%5,6+i%8,5),
+      new THREE.MeshLambertMaterial({color:i%2?0xa0725b:0x947667,flatShading:true}));
+    mesa.position.set(Math.cos(a)*56,2,Math.sin(a)*56);
+    mesa.rotation.y=i;
+    sc.add(mesa);
+  }
+  for(let i=0;i<70;i++){
+    const x=Math.sin(i*12.9)*44,z=Math.cos(i*7.3)*44;
+    if((Math.abs(x)<11&&Math.abs(z)<11)||(x>8&&x<21&&Math.abs(z+3)<10))continue;
+    const rock=new THREE.Mesh(new THREE.DodecahedronGeometry(.25+i%5*.12),
+      new THREE.MeshLambertMaterial({color:i%3?0xa68a72:0x6b7952,flatShading:true}));
+    rock.scale.set(1.4,.55,1);
+    rock.position.set(x,.14,z);
+    sc.add(rock);
+  }
+  for(let i=0;i<8;i++) block(sc,0xcbb08e,14+Math.sin(i)*.13,.014,1+i*.62,.9,.03,.38);
+  const placed=new THREE.Group(),ghost=new THREE.Group();
+  ghost.visible=false;
+  sc.add(placed,ghost);
+  G={R,sc,cam,sun,amb,placed,ghost,box,grid,th:0,ph:.34,d:5.1,solids:[],partSolids:new Set(),keys:new Set(),
+    player:makePlayer(sc),cameraRay:new THREE.Ray(),target:new THREE.Vector3(),offset:new THREE.Vector3(),hit:new THREE.Vector3()};
+  makeEarthship();
+  G.solids.push(G.door.box);
+  restoreParts();
+  const ray=new THREE.Raycaster(),pointer=new THREE.Vector2();
+  let down=null,hover=null,last=0;
+  const hit=e=>{
+    const r=cv.getBoundingClientRect();
+    pointer.set((e.clientX-r.left)/r.width*2-1,-((e.clientY-r.top)/r.height)*2+1);
+    ray.setFromCamera(pointer,cam);
+    const h=ray.intersectObject(gr)[0];
+    if(!h||Math.abs(h.point.x)>9||Math.abs(h.point.z)>9)return null;
+    return {x:clamp(Math.round(h.point.x/1.5)*1.5,-7.5,7.5),
+      z:clamp(Math.round(h.point.z/1.5)*1.5,-7.5,7.5),r:rot,t:build};
+  };
+  const blocked=w=>{
+    const bounds=partBounds(w),p=G.player.body.position;
+    bounds.expandByScalar(-.015);
+    return overlaps(bounds,G.solids)||bounds.intersectsBox(bodyBounds(p.x,0,p.z));
+  };
+  const preview=()=>{
+    const p=build&&hover&&hit(hover);
+    ghost.visible=!!p;
+    if(!p)return;
+    ghost.position.set(p.x,.025,p.z);
+    ghost.rotation.y=p.r;
+    const color=(blocked(p)||!canBuild(build))?0xe16651:0x9bd791;
+    ghost.traverse(m=>{if(m.isMesh)m.material.color.setHex(color)});
+  };
+  cv.onpointerdown=e=>{
+    if(e.button!==0&&e.button!==2)return;
+    cv.focus({preventScroll:true});
+    down={x:e.clientX,y:e.clientY,id:e.pointerId,drag:false};
+    cv.setPointerCapture(e.pointerId);
+  };
+  cv.onpointermove=e=>{
+    hover=e;
+    if(!down||down.id!==e.pointerId)return;
+    const dx=e.clientX-down.x,dy=e.clientY-down.y;
+    if(!down.drag&&Math.hypot(dx,dy)<5)return;
+    down.drag=true;
+    G.th-=dx*.006;
+    G.ph=clamp(G.ph+dy*.005,-.12,1.12);
+    down.x=e.clientX;down.y=e.clientY;
+  };
+  cv.onpointerup=e=>{
+    const click=down?.id===e.pointerId&&!down.drag&&e.button===0;
+    down=null;
+    if(!click||!build)return;
+    const w=hit(e);
+    if(!w)return;
+    if(blocked(w)){toast('That spot is occupied');return}
+    if(!canBuild(build)){toast('Not enough resources');return}
+    S.res.tires-=COST[build].tires;
+    S.res.earth-=COST[build].earth;
+    S.walls.push(w);addWall(w);save();
+    toast('Built '+PART_LABEL[build]);
+    if(!canBuild(build))setBuild(false);
+    else hud();
+  };
+  cv.onlostpointercapture=()=>{down=null};
+  cv.onpointerleave=()=>{hover=null};
+  cv.oncontextmenu=e=>e.preventDefault();
+  cv.addEventListener('wheel',e=>{
+    e.preventDefault();
+    G.d=clamp(G.d*Math.exp(clamp(e.deltaY,-160,160)*.003),2.2,16);
+  },{passive:false});
+  const movement=['KeyW','KeyA','KeyS','KeyD'];
+  addEventListener('keydown',e=>{
+    if(box.closest('.hide')||e.ctrlKey||e.metaKey||e.altKey)return;
+    if(e.target.closest?.('input, textarea, select, [contenteditable]'))return;
+    if(e.code==='Space'&&e.target.closest?.('button'))return;
+    if(![...movement,'Space','KeyB','KeyE','KeyR','Escape'].includes(e.code))return;
+    e.preventDefault();
+    if(movement.includes(e.code))G.keys.add(e.code);
+    if(e.repeat)return;
+    if(e.code==='Space'&&G.player.grounded)G.player.vy=5.25;
+    if(e.code==='KeyE')interact();
+    if(e.code==='KeyB')setBuild(build?false:selection);
+    if(e.code==='KeyR'&&build)rot=(rot+Math.PI/2)%(2*Math.PI);
+    if(e.code==='Escape')setBuild(false);
+  });
+  addEventListener('keyup',e=>G.keys.delete(e.code));
+  addEventListener('blur',()=>G.keys.clear());
+  document.addEventListener('visibilitychange',()=>G.keys.clear());
+  addEventListener('resize',fit);
+  fit();hud();
+  requestAnimationFrame(function loop(now){
+    requestAnimationFrame(loop);
+    const dt=Math.min((now-(last||now))/1000,.05);
+    last=now;
+    if(box.closest('.hide'))return;
+    movePlayer(dt);
+    followPlayer();
+    preview();
+    frame();
+  });
+}
+function movePlayer(dt) {
+  const {player,keys,solids,th}=G, p=player.body.position;
+  const forward=Number(keys.has('KeyW'))-Number(keys.has('KeyS'));
+  const side=Number(keys.has('KeyD'))-Number(keys.has('KeyA'));
+  const speed=3.6/Math.max(1,Math.hypot(forward,side));
+  const dx=(side*Math.cos(th)-forward*Math.sin(th))*speed*dt;
+  const dz=(-side*Math.sin(th)-forward*Math.cos(th))*speed*dt;
+  // Resolve one axis at a time so the player can slide along obstacles.
+  const oldX=p.x,oldZ=p.z;
+  const x=clamp(p.x+dx,-44,44),z=clamp(p.z+dz,-44,44);
+  if(!overlaps(bodyBounds(x,p.y,p.z),solids))p.x=x;
+  if(!overlaps(bodyBounds(p.x,p.y,z),solids))p.z=z;
+  if(dx||dz)player.body.rotation.y=Math.atan2(dx,dz);
+  player.vy-=14*dt;
+  let y=Math.max(0,p.y+player.vy*dt);
+  player.grounded=y===0;
+  for(const box of solids){
+    if(p.x+PLAYER_RADIUS<box.min.x||p.x-PLAYER_RADIUS>box.max.x||
+      p.z+PLAYER_RADIUS<box.min.z||p.z-PLAYER_RADIUS>box.max.z)continue;
+    if(player.vy<0&&p.y>=box.max.y&&y<=box.max.y){
+      y=box.max.y+.0001;player.grounded=true;
+    }
+    if(player.vy>0&&p.y+1.85<=box.min.y&&y+1.85>=box.min.y){
+      y=box.min.y-1.8501;player.vy=0;
+    }
+  }
+  p.y=y;
+  if(player.grounded)player.vy=0;
+  const distance=Math.hypot(p.x-oldX,p.z-oldZ);
+  player.stride+=distance*5;
+  const swing=distance&&player.grounded?Math.sin(player.stride)*.55:0;
+  player.limbs.forEach(({arm,leg},i)=>{
+    leg.rotation.x=i?swing:-swing;
+    arm.rotation.x=-leg.rotation.x*.75;
+  });
+}
+function followPlayer() {
+  const {cam,player,target,offset,cameraRay,hit,solids,th,ph,d}=G;
+  target.copy(player.body.position);
+  target.y+=1.39;
+  offset.set(Math.sin(th)*Math.cos(ph),Math.sin(ph),Math.cos(th)*Math.cos(ph));
+  cameraRay.set(target,offset);
+  let distance=d;
+  for(const box of solids){
+    if(cameraRay.intersectBox(box,hit))distance=Math.min(distance,Math.max(.18,hit.distanceTo(target)-.2));
+  }
+  if(offset.y<0)distance=Math.min(distance,(target.y-.22)/-offset.y);
+  cam.position.copy(target).addScaledVector(offset,distance);
+  cam.lookAt(target);
+  cam.updateMatrixWorld();
+  player.body.visible=distance>.48;
+  $('#hint').textContent=nearDoor()?(G.door.open?'E Close door':'E Open door'):'';
+}
+
 function partMesh(t,ghost){if(!t||t==='wall')return wallMesh(ghost);
   const g=new THREE.Group(),M=c=>new THREE.MeshLambertMaterial({color:c,transparent:ghost,opacity:ghost?.55:1}),B=(geo,c,y)=>{const m=new THREE.Mesh(geo,M(c));m.position.y=y;g.add(m);return m};
   if(t==='cistern')B(new THREE.CylinderGeometry(.6,.6,1.4,16),0x5d7f93,.7);
@@ -156,8 +443,29 @@ function partMesh(t,ghost){if(!t||t==='wall')return wallMesh(ghost);
   if(t==='greenhouse'){B(new THREE.BoxGeometry(2,.2,1.2),0x5a3f2a,.1);B(new THREE.BoxGeometry(1.8,.3,1),0x4f8a3f,.3);const gl=new THREE.Mesh(new THREE.BoxGeometry(2.4,1.3,1.6),new THREE.MeshLambertMaterial({color:0xbfe8e4,transparent:true,opacity:.35}));gl.position.y=.65;g.add(gl)}
   if(t==='panel'){B(new THREE.BoxGeometry(.08,.7,.08),0x555555,.35);B(new THREE.BoxGeometry(1.3,.05,.9),0x1f3a6e,.75).rotation.x=-.6}
   return g}
-function ghostSet(){if(!G)return;G.ghost.clear();if(build)G.ghost.add(partMesh(build,true))}
-function addWall(w){const m=partMesh(w.t,false);m.position.set(w.x,0,w.z);m.rotation.y=w.r;G.placed.add(m)}
+
+function ghostSet(){
+  G.ghost.traverse(m=>{if(m.isMesh){m.geometry.dispose();m.material.dispose()}});
+  G.ghost.clear();
+  G.ghost.visible=false;
+  if(build)G.ghost.add(partMesh(build,true));
+}
+function addWall(w){
+  const m=partMesh(w.t,false),bounds=partBounds(w);
+  m.position.set(w.x,0,w.z);m.rotation.y=w.r||0;G.placed.add(m);
+  G.solids.push(bounds);G.partSolids.add(bounds);
+}
+function restoreParts(){
+  G.placed.traverse(m=>{if(m.isMesh){m.geometry.dispose();m.material.dispose()}});
+  G.placed.clear();
+  G.solids=G.solids.filter(box=>!G.partSolids.has(box));
+  G.partSolids.clear();
+  S.walls.forEach(addWall);
+  G.player.body.position.set(14,0,6.6);
+  G.player.body.rotation.y=Math.PI;
+  G.player.vy=0;
+  setBuild(false);
+}
 /* simplified balances: rain -> roof (needs a wall) -> cistern; sun -> panels -> battery -> household load */
 let lastT=0,rain=0,simTxt='',sv=0,wasR=false;
 function harvest(){const gh=S.walls.filter(w=>w.t==='greenhouse').length;if(!(S.sim.crop>=100))return;S.res.food=(S.res.food||0)+5*gh;S.sim.crop=0;S.hist.unshift({t:Date.now(),label:'Harvest',msg:'+'+5*gh+' food'});toast('Harvested '+5*gh+' food');save();hud()}
@@ -174,19 +482,19 @@ function simStep(h){const n=Date.now(),dt=lastT?Math.min(2,(n-lastT)/1000):0;las
   const rd=sm.crop>=100;if(rd!==wasR){wasR=rd;hud()}
   if((sv+=dt)>5){sv=0;save()}
   simTxt=`💧 ${sm.water.toFixed(0)}/${wc} · ⚡ ${sm.power.toFixed(0)}/${bc}${rain>0?' · 🌧 rain':''}${sh&&bc&&sm.power<1?' · household dark':''}${gh?` · 🌱 ${sm.crop.toFixed(0)}%`:''}`}
-function fit(){if(!G)return;const b=G.box;G.R.setSize(b.clientWidth,b.clientHeight,false);G.cam.aspect=b.clientWidth/b.clientHeight;G.cam.updateProjectionMatrix()}
+function fit(){if(!G||!G.box.clientWidth)return;const b=G.box;G.R.setSize(b.clientWidth,b.clientHeight,false);G.cam.aspect=b.clientWidth/b.clientHeight;G.cam.updateProjectionMatrix()}
 function frame(){
   const day=(Date.now()/(86400000/3))%1,a=day*Math.PI*2-Math.PI/2,h=Math.sin(a);   // 1 real day = 3 game days
-  G.sun.position.set(Math.cos(a)*40,Math.max(h,.05)*40,15);G.sun.intensity=Math.max(.12,h*1.1);G.amb.intensity=.25+Math.max(0,h)*.4;
+  G.sun.position.set(Math.cos(a)*40,Math.max(h,.05)*40,15);G.sun.intensity=Math.max(.24,h*1.1);G.amb.intensity=.68+Math.max(0,h)*.24;
   const sky=new THREE.Color().setHSL(.58,.5,.12+Math.max(0,h)*.5);G.sc.background=sky;
-  const c=G.cam;c.position.set(Math.sin(G.th)*Math.cos(G.ph)*G.d,Math.sin(G.ph)*G.d,Math.cos(G.th)*Math.cos(G.ph)*G.d);c.lookAt(0,0,0);
-  simStep(h);G.R.render(G.sc,c);const sx=$('#sim');if(sx)sx.textContent=simTxt;const k=$('#clk');if(k)k.textContent=(h>0?'☀ Day ':'☾ Night ')+(Math.floor(Date.now()/(86400000/3))%1000);
+  G.sc.fog.color.copy(sky);
+  simStep(h);G.R.render(G.sc,G.cam);const sx=$('#sim');if(sx)sx.textContent=simTxt;const k=$('#clk');if(k)k.textContent=(h>0?'☀ Day ':'☾ Night ')+(Math.floor(Date.now()/(86400000/3))%1000);
 }
 /* ---------- nav ---------- */
 function show(s){['dash','habits','home','prog'].forEach(x=>$('#'+x).classList.toggle('hide',x!==s));
   document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.s===s));
   if(s==='dash')dash();if(s==='habits')habits();if(s==='prog')prog();
-  if(s==='home'){if(!G)initGL();else{fit();hud()}}}
+  if(s==='home'){if(!G)initGL();else{fit();hud()}$('#cv').focus({preventScroll:true})}else G?.keys.clear()}
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>show(b.dataset.s));
 show('dash');
 </script></body></html>

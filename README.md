@@ -1,24 +1,23 @@
 # Life HQ — Homestead Prototype
 
-Initial prototype created by Claude and uploaded without modifying the original HTML source.
+Open `index.html` in a desktop browser with WebGL and internet access. The app uses the existing Three.js CDN and needs no build step. Select **Homestead** to play.
 
-## Run
+| Control | Action |
+| --- | --- |
+| W, A, S, D | Walk relative to the camera |
+| Mouse drag | Orbit the follow camera |
+| Scroll | Zoom |
+| Space | Jump |
+| E | Open or close the Earthship door when nearby |
+| B | Toggle build mode |
+| R | Rotate the selected part |
+| Left click | Place the preview on the build plot |
+| Escape | Exit build mode |
 
-Open `index.html` in a modern web browser with internet access. The 3D homestead loads Three.js from a CDN, so the first load requires a network connection.
+Walk straight ahead from spawn to reach the starter Earthship. Open the door and walk inside. The camera moves closer near walls and ceilings. Use the adjacent build plot to spend tires and earth earned through tasks and habits. A green preview marks a valid placement and a red preview marks an occupied or unaffordable placement.
 
-## Features
+The dashboard, habit trackers, progress history, and water, power, and crop simulation use the original `lifehq.v1` browser save. Existing structures retain their original positions and rotations. The starter Earthship is always present and is separate from the resource simulation. Use **Progress** to export and import a backup when moving to another browser or origin.
 
-- GTD dashboard with seven task columns
-- Three customizable monthly habit trackers
-- Task and habit rewards
-- Interactive 3D desert homestead with placeable structures
-- Basic water, solar, and crop simulation
-- Browser-local saving, backup export and import
+## Limitations
 
-## Important limitations
-
-This is a prototype, not a production application. Data is stored in the browser's localStorage and does not synchronize between devices. The construction and resource models are simplified for educational gameplay, not real-world engineering instructions.
-
-## Next steps
-
-Test the prototype, fix runtime and interaction issues, add automated tests, then migrate to a modular TypeScript architecture.
+Movement is designed for keyboard and mouse. Collision uses simple boxes, including for irregular build parts, and decorative rocks and mesas have no collision. Player position, camera, and door state reset on reload. The simulation is simplified gameplay. Saves are local to the browser and do not synchronize.
