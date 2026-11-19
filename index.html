@@ -84,9 +84,10 @@ function reward(label,base){
 function dash(){
   const el=$('#dash'),open=S.tasks.filter(t=>!t.done&&t.col==='Today').slice(0,3);
   el.innerHTML=`<div class="bar"><input type="text" id="nt" placeholder="Capture a task (goes to Inbox)…"><button class="btn pri" id="add">Add</button><button class="btn pri" id="start">▶ START NEXT ACTION</button><button class="btn" id="just">JUST START (2 min)</button></div>
-  ${campaignUI()}<div class="card"><b>Top Three Priorities</b> <small>(first three open tasks in Today)</small>${open.map((t,i)=>`<div>${i+1}. ${esc(t.t)}</div>`).join('')||'<div class="mut">Move tasks into Today.</div>'}</div>
+  ${campaignUI()}${bookCurriculumUI()}<div class="card"><b>Top Three Priorities</b> <small>(first three open tasks in Today)</small>${open.map((t,i)=>`<div>${i+1}. ${esc(t.t)}</div>`).join('')||'<div class="mut">Move tasks into Today.</div>'}</div>
   <div class="cols">${COLS.map(c=>`<div class="col" data-c="${c}"><h4>${c} · ${S.tasks.filter(t=>t.col===c&&!t.done).length}</h4>${S.tasks.filter(t=>t.col===c).map(t=>`<div class="task ${t.done?'done':''}" draggable="true" data-id="${t.id}"><input type="checkbox" ${t.done?'checked':''} data-chk="${t.id}"><span data-ed="${t.id}">${esc(t.t)}</span><i data-del="${t.id}" title="Delete">×</i></div>`).join('')}</div>`).join('')}</div>
   <small>Drag cards between columns. Double-click text to edit. Unchecking restores a task; a task only pays out once.</small>`;
+  el.querySelectorAll('[data-book]').forEach(b=>b.onclick=()=>openBookChapter(Number(b.dataset.book)));
   const add=()=>{const v=$('#nt').value.trim();if(!v)return;S.tasks.push({id:'t'+Date.now(),t:v,col:'Inbox',done:false,paid:false});save();dash()};
   $('#add').onclick=add;$('#nt').onkeydown=e=>{if(e.key==='Enter')add()};
   $('#start').onclick=()=>{const t=S.tasks.find(t=>!t.done&&t.col==='Today')||S.tasks.find(t=>!t.done&&t.col==='Next Actions');t?focus(t,25*60,'Focus session'):toast('Add a task to Today or Next Actions first')};
@@ -321,6 +322,65 @@ for(const [id,sections] of Object.entries(EXTRA_READING)){PART_LABEL[id]=EXTRA_P
 const levelIndex=id=>CAMPAIGN.findIndex(l=>l.parts.includes(id));
 const stageDone=i=>CAMPAIGN[i].parts.every(id=>S.walls.some(w=>w.t===id)||id==='survival'&&S.lessons?.survival===1);
 const levelUnlocked=i=>i===0||stageDone(i-1);
+
+/* Book-first curriculum: only authored chapters are readable; future chapters remain explicitly planned. */
+const BOOK_VOLUMES=[
+ ['Earthship Construction','Earthship Biotecture and documented owner-build accounts',[
+ 'Earthship principles and passive solar design','Choosing land and evaluating a site','Designing a modular floor plan','Site preparation and foundations','Tire walls and thermal mass','Insulation and waterproofing','Roof systems','Glazing and ventilation','Rainwater catchment and cisterns','Water treatment and plumbing','Greywater and sanitation','Solar, wind and battery power','Natural finishes','Indoor greenhouse','Adding wings and rooms','Commissioning and maintenance']],
+ ['Self-Sufficient Homestead','Oregon State University open permaculture textbooks and extension guides',[
+ 'Permaculture foundations','Zones, sectors and site mapping','Soil health and compost','Water harvesting and irrigation','Vegetable garden design','Seeds and planting calendars','Crop rotation and plant guilds','Season extension','Orchards and food forests','Small livestock','Pollinators and pest ecology','Mushrooms and perennial foods','Harvest and food preservation','Seed saving','Closing nutrient cycles','Year-round homestead planning']],
+ ['Survival and Self-Reliance','FEMA preparedness and public-agency technical guidance',[
+ 'Risk and survival priorities','Emergency shelter','Fire and safe cooking','Water treatment','Food and nutrition','Maps and navigation','First aid','Weather hazards','Sheltering in place','Evacuation planning','Emergency communication','Infrastructure failure','Physical security and alarms','Tool maintenance','Mutual aid','Disaster readiness exercise']],
+ ['Zombie Apocalypse','Fictional campaign; survival and homestead systems carry forward',[
+ 'The outbreak','Prepare the bunker','Supply economy','First wave','Perimeter upgrades','Virtual shooting range','Game defenses','Night waves','Farming under siege','Utility failures','Survivor community','Scavenging missions','Special zombies','Base upgrades','The final siege','Endless mode']]
+];
+const BOOK_CHAPTERS={
+ 1:{source:[['Earthship Biotecture — preparation','https://earthship.com/preparation-to-the-earthship-academy/'],['Dry Creek Earthship construction journal','https://drycreekearthship.wordpress.com/construction-process/']],
+ sections:[
+ ['What makes an Earthship different','An Earthship is a building approach that combines passive solar design, thermal mass, rainwater harvesting, renewable energy, food-growing spaces and on-site wastewater systems. The systems are interconnected: a greenhouse can contribute to solar heat gain, but glazing can also cause overheating; rainwater collection reduces dependence on utilities, but stored water still requires monitoring and treatment. A building does not become self-sufficient merely by adding solar panels. It must balance resource demand, storage capacity, climate, maintenance and occupant behavior.'],
+ ['Thermal mass versus insulation','Thermal mass stores sensible heat and changes temperature relatively slowly. Dense earth-filled walls can buffer daily temperature swings, but they are not interchangeable with insulation. Insulation reduces the rate of heat flow; thermal mass delays and redistributes it. The useful combination depends on local climate, soil temperatures, solar exposure, moisture control and building geometry. A wall that performs well in a sunny high-desert setting may behave differently in a humid or persistently cloudy region.'],
+ ['The sun as a design input','Solar orientation influences winter heat gain, summer overheating, daylight and photovoltaic production. In the northern hemisphere, equator-facing glazing often captures more low-angle winter sunlight, but the best design depends on the site. Shade from trees, mountains and neighboring buildings changes through the day and year. A good site study records seasonal sun paths, prevailing winds, drainage patterns and existing vegetation before a footprint is finalized.'],
+ ['The six-system mindset','Think of the house as six interacting systems: shelter and thermal comfort; electricity; water capture and storage; water treatment and reuse; sanitation; and food production. For each system, list inputs, outputs, storage, failure points and maintenance tasks. For example, electricity has generation, conversion, batteries, loads and backup; water has collection, screening, storage, treatment, distribution and overflow. A design can fail when any one link is neglected.'],
+ ['Embodied materials and durability','Reused tires, bottles and cans can divert materials from waste streams, but sustainability also depends on transportation, labor, structural suitability, moisture resistance and eventual repairs. Compare local availability and the full life cycle of materials rather than assuming that recycled automatically means low impact. Roof membranes, pumps, batteries, filters and sealants have service lives and require replacement plans.'],
+ ['Planning your build sequence','A useful sequence is: investigate the site; establish climate and resource needs; design the building and utility systems together; validate structure, drainage and permits; prepare the site; build the envelope; install water and electrical infrastructure; test and commission; then monitor performance. This is a planning framework, not a universal construction recipe. Earthships vary widely in layout, wall design and systems.'],
+ ['What to record in your project notebook','Keep a site map, photographs, seasonal observations, an energy-demand estimate, a water budget, a list of materials and costs, and a risk register. Document design decisions and unresolved questions. Before construction, get site-specific professional input for load-bearing systems, waterproofing, electrical installation, potable water and wastewater. The goal of the game is to teach how the pieces fit together, not to certify a real building.']
+ ]},
+ 2:{source:[['Dry Creek Earthship — construction process','https://drycreekearthship.wordpress.com/construction-process/'],['Earthship Biotecture — preparation','https://earthship.com/preparation-to-the-earthship-academy/']],
+ sections:[
+ ['Define your needs before choosing a parcel','Start with the intended number of occupants, seasonal occupancy, accessibility needs, expansion plans and a realistic construction budget. Determine what services must work during a power or water outage. A beautiful plot may be a poor building site if access, drainage or water supply is unsuitable.'],
+ ['Observe the site across seasons','Study sun angles, prevailing wind, frost exposure, slope, flood pathways and potential wildfire hazards. Note whether winter shade is substantially different from summer shade. Walk the property after rain to see where water accumulates and where soil erodes. A single visit on a sunny afternoon reveals little about the worst conditions.'],
+ ['Soil, slope and foundation constraints','Soil bearing capacity, settlement, groundwater, expansive clay and slope stability can control whether a design is practical. Bermed structures introduce lateral earth pressure and water-management requirements. A soil investigation and engineered foundation design are especially important when the building carries heavy earth-filled walls.'],
+ ['Water availability and catchment math','A rough upper-bound roof catchment estimate is roof area in square feet multiplied by rainfall in inches multiplied by 0.623 to obtain US gallons. Actual yield is lower due to first-flush diversion, evaporation, leakage and collection inefficiency. Annual totals hide dry-season shortages: compare monthly rainfall with monthly demand, and provide safe overflow. Roof runoff should not be assumed drinkable without appropriate testing and treatment.'],
+ ['Access, utilities and regulations','Consider emergency vehicle access, delivery of heavy materials, construction staging, equipment turnaround and winter road conditions. Check local requirements for buildings, wells, water collection, wastewater, fire access and electrical systems. Understanding a regulation is different from endorsing it: the game can teach how a system works while clearly identifying real-world compliance considerations.'],
+ ['Site selection worksheet','Compare candidate sites using a consistent scorecard: solar access, climate suitability, slope and drainage, geotechnical risk, water reliability, road access, natural hazards, ecosystem impact, and total cost. Record uncertainties instead of assigning false precision. The best site is the one whose constraints you understand and can manage, not necessarily the cheapest or most scenic.']
+ ]}
+};
+function bookChapterDone(n){return !!S.lessons?.['book-'+n]}
+function bookChapterAvailable(n){return !!BOOK_CHAPTERS[n]&&(n===1||bookChapterDone(n-1))}
+function bookCurriculumUI(){
+ let n=0;
+ return '<div class="card"><h2>Life HQ Library · Four-volume curriculum</h2><p class="mut">64 planned chapters. Detailed chapters are released as they are authored and checked against their sources. No quizzes. Your progress is saved.</p>'+
+ BOOK_VOLUMES.map((v,vi)=>'<details '+(vi===0?'open':'')+'><summary><b>Volume '+(vi+1)+': '+esc(v[0])+'</b> · '+v[2].length+' chapters</summary><p class="mut">'+esc(v[1])+'</p>'+
+ v[2].map(title=>{let id=++n,ready=bookChapterAvailable(id),authored=!!BOOK_CHAPTERS[id];return '<div style="padding:7px 0;border-bottom:1px solid var(--line)"><span>'+id+'. '+esc(title)+'</span> <small>'+(bookChapterDone(id)?'✓ Read':ready?'Ready to read':authored?'🔒 Read preceding chapter':'Planned')+'</small> '+(ready?'<button class="btn" data-book="'+id+'">Read chapter</button>':'')+'</div>'}).join('')+'</details>').join('')+'</div>';
+}
+function openBookChapter(n){
+ if(!bookChapterAvailable(n))return;
+ const ch=BOOK_CHAPTERS[n],dialog=$('#build-guide'),title=BOOK_VOLUMES[Math.floor((n-1)/16)][2][(n-1)%16];
+ setBuild(false);G.keys.clear();
+ dialog.innerHTML='<div class="guide-top"><div><small>Life HQ · Volume '+(Math.floor((n-1)/16)+1)+' · Chapter '+n+'</small><h2>'+esc(title)+'</h2></div><button class="btn" data-close>Close</button></div>'+
+ '<article style="line-height:1.8;max-width:75ch"><p>This chapter is original educational material synthesized from the linked references. It is not a reproduction of a commercial book.</p>'+
+ ch.sections.map(([heading,body])=>'<h3>'+esc(heading)+'</h3><p>'+esc(body)+'</p>').join('')+
+ '<h3>Primary references and further study</h3><ul>'+ch.source.map(([name,url])=>'<li><a target="_blank" rel="noopener noreferrer" href="'+url+'">'+esc(name)+'</a></li>').join('')+'</ul></article>'+
+ '<div style="padding:20px 0"><button class="btn pri" id="book-mark" disabled>Mark as Read</button><p class="mut">Scroll to the end to record your reading. No quiz or credits charged.</p></div>';
+ dialog.querySelector('[data-close]').onclick=()=>dialog.close();
+ const mark=dialog.querySelector('#book-mark');
+ const check=()=>{mark.disabled=dialog.scrollTop+dialog.clientHeight<dialog.scrollHeight-45};
+ dialog.onscroll=check;
+ mark.onclick=()=>{S.lessons={...S.lessons,['book-'+n]:true};save();dialog.close();dash();toast('Chapter '+n+' completed')};
+ dialog.onclose=()=>$('#cv').focus({preventScroll:true});
+ dialog.showModal();check();
+}
+
 function campaignUI(){return '<div class="card"><h2>Homestead campaign · sequential levels</h2>'+CAMPAIGN.map((l,i)=>'<div style="padding:12px 0;border-bottom:1px solid #7775"><b>'+esc(l.name)+'</b> · '+(levelUnlocked(i)?stageDone(i)?'Completed ✓':'Unlocked':'🔒 Complete previous level')+'<p>'+esc(l.desc)+'</p><small>Required components: '+l.parts.map(p=>esc(PART_LABEL[p])+(S.walls.some(w=>w.t===p)||p==='survival'&&S.lessons?.survival===1?' ✓':'')).join(' · ')+'</small> <a href="'+l.source+'" target="_blank" rel="noopener noreferrer">Guide source</a></div>').join('')+'</div>'}
 function articleText(part){
  const g=GUIDES[part],parts=g.sections;
