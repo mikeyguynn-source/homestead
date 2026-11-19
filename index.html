@@ -65,7 +65,7 @@ small,.mut{color:var(--mut)}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 const COLS=['Inbox','Next Actions','Scheduled','Projects','Waiting For','Someday/Maybe','Today'];
-const COST={wall:{tires:4,earth:6},cistern:{tires:2,earth:4},panel:{tires:1,earth:3},battery:{tires:2,earth:3},greenhouse:{tires:3,earth:8},greywater:{tires:2,earth:5}},K='lifehq.v1';
+const COST={wall:{tires:4,earth:6},cistern:{tires:2,earth:4},panel:{tires:1,earth:3},battery:{tires:2,earth:3},greenhouse:{tires:3,earth:8},greywater:{tires:2,earth:5},farm:{tires:1,earth:5},compost:{tires:1,earth:3},rainbarrel:{tires:1,earth:3}},K='lifehq.v1';
 const COLORS=['#c0623a','#6b8f55','#4f7ea8','#b58a2a'];
 let S;
 function fresh(){return{v:1,tasks:[],habits:[{id:'h1',name:'Meditate',color:COLORS[0]},{id:'h2',name:'Exercise',color:COLORS[1]},{id:'h3',name:'Study',color:COLORS[2]}],log:{},res:{tires:0,earth:0},walls:[],lessons:{},sim:{water:0,power:0},hist:[],odds:[70,20,8,2],month:new Date().toISOString().slice(0,7)}}
@@ -84,7 +84,7 @@ function reward(label,base){
 function dash(){
   const el=$('#dash'),open=S.tasks.filter(t=>!t.done&&t.col==='Today').slice(0,3);
   el.innerHTML=`<div class="bar"><input type="text" id="nt" placeholder="Capture a task (goes to Inbox)…"><button class="btn pri" id="add">Add</button><button class="btn pri" id="start">▶ START NEXT ACTION</button><button class="btn" id="just">JUST START (2 min)</button></div>
-  <div class="card"><b>Top Three Priorities</b> <small>(first three open tasks in Today)</small>${open.map((t,i)=>`<div>${i+1}. ${esc(t.t)}</div>`).join('')||'<div class="mut">Move tasks into Today.</div>'}</div>
+  ${campaignUI()}<div class="card"><b>Top Three Priorities</b> <small>(first three open tasks in Today)</small>${open.map((t,i)=>`<div>${i+1}. ${esc(t.t)}</div>`).join('')||'<div class="mut">Move tasks into Today.</div>'}</div>
   <div class="cols">${COLS.map(c=>`<div class="col" data-c="${c}"><h4>${c} · ${S.tasks.filter(t=>t.col===c&&!t.done).length}</h4>${S.tasks.filter(t=>t.col===c).map(t=>`<div class="task ${t.done?'done':''}" draggable="true" data-id="${t.id}"><input type="checkbox" ${t.done?'checked':''} data-chk="${t.id}"><span data-ed="${t.id}">${esc(t.t)}</span><i data-del="${t.id}" title="Delete">×</i></div>`).join('')}</div>`).join('')}</div>
   <small>Drag cards between columns. Double-click text to edit. Unchecking restores a task; a task only pays out once.</small>`;
   const add=()=>{const v=$('#nt').value.trim();if(!v)return;S.tasks.push({id:'t'+Date.now(),t:v,col:'Inbox',done:false,paid:false});save();dash()};
@@ -297,47 +297,58 @@ function toolHint(){
   return '';
 }
 
+
+/* Sequential homestead campaign: construction, food systems, then survival. */
+const CAMPAIGN=[
+ {id:'earthship',name:'Level 1 · Modular Earthship',desc:'Build a functioning core shelter, then add expandable wings and utilities.',parts:['wall','cistern','panel','battery','greywater'],source:'https://earthship.com/preparation-to-the-earthship-academy/'},
+ {id:'backyard',name:'Level 2 · Self-sustaining backyard',desc:'Develop food production, soil, water and resilient growing systems.',parts:['greenhouse','farm','compost','rainbarrel'],source:'https://www.usda.gov/topics/farming/gardening'},
+ {id:'survival',name:'Level 3 · Survival and self-reliance',desc:'Learn preparedness, water safety, navigation and emergency planning.',parts:['survival'],source:'https://www.ready.gov/kit'}
+];
+const EXTRA_PARTS={farm:'Food garden',compost:'Composting system',rainbarrel:'Rainwater collection',survival:'Survival fundamentals'};
+const EXTRA_READING={
+ farm:['Soil and site assessment','A productive garden begins with soil testing, growing-season estimates, solar exposure and an honest assessment of water availability. Raised beds are convenient, but are not a substitute for healthy soil. Soil texture affects drainage, aeration and nutrient retention.','Planning calories and nutrition','A self-sustaining backyard must produce more than salad vegetables. Staple crops, legumes, fruits, perennial plants and preservation methods provide different nutritional roles. Calculate yields and storage losses rather than assuming one greenhouse feeds a household.','Cultivation and maintenance','Use crop rotation, mulching, integrated pest management, compost and efficient irrigation. Track sowing dates, germination, harvest weights and seasonal failures.'],
+ compost:['Decomposition science','Composting uses microorganisms to convert organic waste into a stable soil amendment. Carbon-rich browns, nitrogen-rich greens, oxygen and moisture must be balanced.','Practical system','Choose a rodent-resistant bin with drainage and access for turning. Avoid placing leachate near wells or waterways. Hot composting and cold composting differ in time, labor and pathogen reduction.','Troubleshooting','Bad odors often signal anaerobic conditions or excessive moisture; a dry inactive pile may need water or nitrogen. Finished compost should smell earthy, not rotten.'],
+ rainbarrel:['Catchment principles','Roof catchment can be estimated from roof area in square feet multiplied by rainfall in inches and 0.623 gallons, adjusted for losses. The rainfall distribution matters as much as the annual total.','Components','Gutters, leaf screens, covered storage, a stable base, overflow and a drain form the basic system. Mosquito-proof screening and safe overflow routing are essential.','Water quality','Untreated roof runoff is not assumed potable. Materials, birds, dust and roofing contaminants can affect water quality. Drinking water needs appropriate testing and treatment.'],
+ survival:['Risk assessment','Preparedness starts by identifying plausible hazards in the specific region: heat, cold, storms, wildfire, outages, floods and loss of drinking water. Prioritize common emergencies before extreme scenarios.','Water, shelter and communication','Store safe water, learn approved purification methods, prepare weather-appropriate shelter and establish a family communication plan. Maintain first-aid supplies and know when to call emergency services.','Navigation and practice','Carry offline maps and a compass, understand local terrain, practice communicating an emergency location, and rehearse evacuation routes. Training and judgment matter more than equipment ownership.']
+};
+const EXTRA_SOURCES={
+ farm:[['USDA gardening','https://www.usda.gov/topics/farming/gardening']],
+ compost:[['EPA home composting','https://www.epa.gov/recycle/composting-home']],
+ rainbarrel:[['EPA rain barrels','https://www.epa.gov/soakuptherain/soak-rain-rain-barrels']],
+ survival:[['Ready.gov emergency kit','https://www.ready.gov/kit']]
+};
+for(const [id,sections] of Object.entries(EXTRA_READING)){PART_LABEL[id]=EXTRA_PARTS[id];GUIDES[id]={version:1,sources:EXTRA_SOURCES[id],sections:[[sections[0],sections[1]],[sections[2],sections[3]],[sections[4],sections[5]]]};}
+const levelIndex=id=>CAMPAIGN.findIndex(l=>l.parts.includes(id));
+const stageDone=i=>CAMPAIGN[i].parts.every(id=>S.walls.some(w=>w.t===id)||id==='survival'&&S.lessons?.survival===1);
+const levelUnlocked=i=>i===0||stageDone(i-1);
+function campaignUI(){return '<div class="card"><h2>Homestead campaign · sequential levels</h2>'+CAMPAIGN.map((l,i)=>'<div style="padding:12px 0;border-bottom:1px solid #7775"><b>'+esc(l.name)+'</b> · '+(levelUnlocked(i)?stageDone(i)?'Completed ✓':'Unlocked':'🔒 Complete previous level')+'<p>'+esc(l.desc)+'</p><small>Required components: '+l.parts.map(p=>esc(PART_LABEL[p])+(S.walls.some(w=>w.t===p)||p==='survival'&&S.lessons?.survival===1?' ✓':'')).join(' · ')+'</small> <a href="'+l.source+'" target="_blank" rel="noopener noreferrer">Guide source</a></div>').join('')+'</div>'}
+function articleText(part){
+ const g=GUIDES[part],parts=g.sections;
+ const intro='<p>Learn the purpose, design considerations, material choices, sequence, operation and limitations before marking this component read. This educational simulator is not a substitute for approved engineering or site-specific construction plans.</p>';
+ const text=parts.map(([title,body],i)=>'<h3>'+esc(title)+'</h3><p>'+esc(body)+'</p><h4>Why this stage matters</h4><p>'+esc(i===0?'A good design starts with local conditions, climate, loads, resource needs, codes and the complete system rather than choosing materials in isolation.':i===1?'Consider where each material comes from, how it will be installed, inspected, repaired and eventually replaced. Every subsystem interacts with water, energy, structure and occupant safety.':'Document the work, inspect vulnerable connections, and monitor performance over seasons. A self-sufficient system still requires maintenance, testing and replacement parts.')+'</p>').join('');
+ return intro+text+'<h3>Further reading and original sources</h3><ul>'+g.sources.map(([label,url])=>'<li><a href="'+url+'" target="_blank" rel="noopener noreferrer">'+esc(label)+'</a></li>').join('')+'</ul><p><b>Real-world caution:</b> structural, electrical, wastewater and potable-water systems require local permitting and qualified professional review.</p>';
+}
+
 function guidePassed(part) {
   return S.lessons?.[part] === GUIDES[part].version;
 }
-function openGuide(part) {
-  const dialog = $('#build-guide'), guide = GUIDES[part];
-  const review = guidePassed(part);
-  let step = 0;
-  setBuild(false);
-  G.keys.clear();
-  const render = () => {
-    const [title, text, question, answers, correct] = guide.sections[step];
-    dialog.innerHTML = `<div class="guide-top"><div><small>${step+1} / ${guide.sections.length} · ${review?'Completed':'Required reading'}</small><h2 id="guide-title">${PART_LABEL[part]}</h2></div>
-      <button class="btn" type="button" data-close>Close</button></div>
-      <h3 tabindex="-1">${title}</h3><p>${text}</p>
-      <details ${guide.sources.length?'':'hidden'}><summary>Sources and further reading</summary><ul>${guide.sources.map(([label,url])=>`<li><a href="${url}" target="_blank" rel="noopener noreferrer">${label}</a></li>`).join('')}</ul></details>
-      <form><fieldset><legend>${question}</legend>${answers.map((answer,i)=>`<label><input type="radio" name="answer" value="${i}" required> ${answer}</label>`).join('')}</fieldset>
-      <p class="guide-feedback" role="status"></p><button class="btn pri">${step===guide.sections.length-1?(review?'Finish review':'Unlock '+PART_LABEL[part]):'Check answer and continue'}</button></form>`;
-    dialog.scrollTop = 0;
-    dialog.querySelector('h3').focus();
-    dialog.querySelector('[data-close]').onclick = () => dialog.close();
-    dialog.querySelector('form').onsubmit = e => {
-      e.preventDefault();
-      if (new FormData(e.currentTarget).get('answer') !== String(correct)) {
-        dialog.querySelector('.guide-feedback').textContent = 'Try again. Revisit the reading above.';
-        return;
-      }
-      if (++step < guide.sections.length) {render();return}
-      S.lessons = {...S.lessons,[part]:guide.version};
-      save();
-      dialog.close();
-      if(TOOLS[part]){toolsOpen=true;selectTool(part)}else setBuild(part);
-      if(!review)toast(PART_LABEL[part]+' unlocked');
-    };
-  };
-  dialog.onclose=()=>$('#cv').focus({preventScroll:true});
-  dialog.showModal();
-  render();
+function openGuide(part){
+ const dialog=$('#build-guide'),idx=levelIndex(part);
+ if(idx>0&&!levelUnlocked(idx)){toast('Complete '+CAMPAIGN[idx-1].name+' first');return}
+ const review=guidePassed(part);setBuild(false);G.keys.clear();
+ dialog.innerHTML='<div class="guide-top"><div><small>'+esc(CAMPAIGN[idx]?.name||'Field guide')+' · Scroll to the end to unlock</small><h2 id="guide-title">'+esc(PART_LABEL[part])+'</h2></div><button class="btn" type="button" data-close>Close</button></div><article style="line-height:1.7;max-width:75ch">'+articleText(part)+'</article><div style="padding:20px 0"><button class="btn pri" id="mark-read" disabled>'+ (review?'Mark as read again':'Mark as Read · Unlock')+'</button><p class="mut">Read to the end to enable this button. No quiz.</p></div>';
+ dialog.querySelector('[data-close]').onclick=()=>dialog.close();
+ const mark=dialog.querySelector('#mark-read');
+ const check=()=>{if(dialog.scrollTop+dialog.clientHeight>=dialog.scrollHeight-45)mark.disabled=false};
+ dialog.onscroll=check;
+ mark.onclick=()=>{S.lessons={...S.lessons,[part]:GUIDES[part].version};save();dialog.close();if(part==='survival'){toast('Survival level completed');hud();return}if(TOOLS[part]){toolsOpen=true;selectTool(part)}else setBuild(part);toast(PART_LABEL[part]+' unlocked')};
+ dialog.onclose=()=>$('#cv').focus({preventScroll:true});
+ dialog.showModal();check();
 }
 
 function canBuild(t){return S.res.tires>=COST[t].tires&&S.res.earth>=COST[t].earth}
 function setBuild(t){
+  if(t&&levelIndex(t)>0&&!levelUnlocked(levelIndex(t))){toast('Complete the previous level first');return}
   if(t){toolsOpen=false;equipped=null;firstMark=null}
   build=t;
   if(t)selection=t;
@@ -349,7 +360,8 @@ function hud(){
   $('#hud').innerHTML=`<div>🛞 ${S.res.tires} · 🟫 ${S.res.earth} · 🥬 ${S.res.food||0}</div>
   <button class="btn ${build?'pri':''}" id="bm" aria-pressed="${!!build}">Build (B)</button><button class="btn ${toolsOpen?'pri':''}" id="tools-toggle" aria-pressed="${toolsOpen}">Tools</button>`+
   (toolsOpen?toolMenu():'')+
-  (build?Object.keys(COST).map(t=>`<button class="btn ${build===t?'pri':''}" data-b="${t}" aria-pressed="${build===t}">${PART_LABEL[t]}${guidePassed(t)?'':' · Study'} <small>${COST[t].tires}🛞 ${COST[t].earth}🟫</small></button>`).join('')+'<button class="btn" id="guide-button">'+(guidePassed(build)?'Review guide':'Read to unlock')+'</button>'+(guidePassed(build)?'<button class="btn" id="br">Rotate (R)</button>':''):'')+
+  (build?Object.keys(COST).filter(t=>levelUnlocked(levelIndex(t))).map(t=>`<button class="btn ${build===t?'pri':''}" data-b="${t}" aria-pressed="${build===t}">${PART_LABEL[t]}${guidePassed(t)?'':' · Study'} <small>${COST[t].tires}🛞 ${COST[t].earth}🟫</small></button>`).join('')+'<button class="btn" id="guide-button">'+(guidePassed(build)?'Review guide':'Read to unlock')+'</button>'+(guidePassed(build)?'<button class="btn" id="br">Rotate (R)</button>':''):'')+
+  (levelUnlocked(2)&&!guidePassed('survival')?'<button class="btn pri" id="survival-guide">Read survival guide</button>':'')+
   (S.sim.crop>=100?'<button class="btn pri" id="hv">Harvest crops</button>':'')+`<div id="sim">${simTxt}</div><div class="mut" id="clk"></div>`;
   $('#tools-toggle').onclick=()=>{toolsOpen=!toolsOpen;if(toolsOpen)setBuild(false);else hud()};
   document.querySelectorAll('[data-tool]').forEach(b=>b.onclick=()=>selectTool(b.dataset.tool));
@@ -358,6 +370,7 @@ function hud(){
   if($('#guide-button'))$('#guide-button').onclick=()=>openGuide(build);
   if($('#br'))$('#br').onclick=()=>{rot=(rot+Math.PI/2)%(2*Math.PI)};
   if($('#hv'))$('#hv').onclick=harvest;
+  if($('#survival-guide'))$('#survival-guide').onclick=()=>openGuide('survival');
 }
 function wallMesh(ghost){
   const g=new THREE.Group(),m=new THREE.MeshLambertMaterial({color:0x4a3a30,transparent:ghost,opacity:ghost?.55:1}),c=new THREE.MeshLambertMaterial({color:0x9c7b5a,transparent:ghost,opacity:ghost?.55:1});
@@ -367,7 +380,7 @@ function wallMesh(ghost){
 }
 const PART_SIZE = {
   wall: [3, 1.2, 1], cistern: [1.2, 1.4, 1.2], panel: [1.3, 1.1, .9],
-  battery: [.9, .7, .6], greenhouse: [2.4, 1.3, 1.6], greywater: [1.8, .35, 1.3]
+  battery: [.9, .7, .6], greenhouse: [2.4, 1.3, 1.6], greywater: [1.8, .35, 1.3],farm:[2.4,.3,2],compost:[1.2,1,1.2],rainbarrel:[1,1.4,1]
 };
 const PLAYER_RADIUS = .27;
 const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
@@ -678,6 +691,9 @@ function partMesh(t,ghost){if(!t||t==='wall')return wallMesh(ghost);
   if(t==='battery')B(new THREE.BoxGeometry(.9,.7,.6),0x3d7a4a,.35);
   if(t==='greenhouse'){B(new THREE.BoxGeometry(2,.2,1.2),0x5a3f2a,.1);B(new THREE.BoxGeometry(1.8,.3,1),0x4f8a3f,.3);const gl=new THREE.Mesh(new THREE.BoxGeometry(2.4,1.3,1.6),new THREE.MeshLambertMaterial({color:0xbfe8e4,transparent:true,opacity:.35}));gl.position.y=.65;g.add(gl)}
   if(t==='panel'){B(new THREE.BoxGeometry(.08,.7,.08),0x555555,.35);B(new THREE.BoxGeometry(1.3,.05,.9),0x1f3a6e,.75).rotation.x=-.6}
+  if(t==='farm'){B(new THREE.BoxGeometry(2.3,.2,1.9),0x674b2e,.1);for(let i=-1;i<=1;i++)for(let j=-1;j<=1;j++){const m=B(new THREE.ConeGeometry(.14,.35,5),0x4a8b46,.35);m.position.x=i*.6;m.position.z=j*.5}}
+  if(t==='compost'){B(new THREE.BoxGeometry(1.1,.9,1.1),0x78583b,.45);B(new THREE.BoxGeometry(1.2,.1,1.2),0x52683d,.95)}
+  if(t==='rainbarrel')B(new THREE.CylinderGeometry(.45,.48,1.3,12),0x48758c,.65);
   return g}
 
 function ghostSet(){
