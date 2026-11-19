@@ -248,6 +248,7 @@ function toolClick(ray){
     if(!guidePassed('rounds')||!rangeStats().rounds){toast('Unlock or restock .22 LR rounds in Tools');return}
     const stats=rangeStats(), hit=ray.intersectObjects(G.rangeTarget)[0];
     stats.rounds--;stats.shots++;
+    fireGameRifle(hit);
     if(hit)stats.hits++;
     S.range=stats;
     save();hud();
@@ -485,8 +486,57 @@ function makePlayer(scene) {
     return {arm, leg};
   });
   scene.add(body);
-  return {body, limbs, stride: 0, vy: 0};
+  const player={body, limbs, stride: 0, vy: 0};
+  makeGameRifle(player);
+  return player;
 }
+
+/* Stylized game-only rifle model and short-lived visual firing effects. */
+function makeGameRifle(player){
+ const g=new THREE.Group(),wood=new THREE.MeshLambertMaterial({color:0x835535}),metal=new THREE.MeshLambertMaterial({color:0x292e35}),steel=new THREE.MeshLambertMaterial({color:0x535b60});
+ const piece=(geometry,material,x,y,z)=>{const m=new THREE.Mesh(geometry,material);m.position.set(x,y,z);g.add(m);return m};
+ piece(new THREE.BoxGeometry(.14,.14,.72),wood,0,0,.04); // wooden stock
+ piece(new THREE.BoxGeometry(.15,.15,.3),metal,0,.035,-.33); // receiver
+ piece(new THREE.CylinderGeometry(.035,.035,.72,9),metal,0,.06,-.83).rotation.x=Math.PI/2;
+ piece(new THREE.BoxGeometry(.12,.10,.37),wood,0,-.09,-.66); // fore-end
+ piece(new THREE.BoxGeometry(.12,.12,.18),metal,0,-.15,-.29); // magazine
+ piece(new THREE.BoxGeometry(.025,.065,.025),steel,0,.16,-.47); // rear sight
+ piece(new THREE.BoxGeometry(.025,.075,.025),steel,0,.16,-1.12); // front sight
+ const flash=new THREE.Group();
+ const core=new THREE.Mesh(new THREE.ConeGeometry(.13,.33,7),new THREE.MeshBasicMaterial({color:0xffd24a,transparent:true,opacity:.96,depthWrite:false}));
+ core.rotation.x=-Math.PI/2;core.position.z=-.16;flash.add(core);
+ const glow=new THREE.Mesh(new THREE.SphereGeometry(.105,8,6),new THREE.MeshBasicMaterial({color:0xff8a1c,transparent:true,opacity:.75,depthWrite:false}));
+ flash.add(glow);flash.position.set(0,.06,-1.19);flash.visible=false;g.add(flash);
+ g.position.set(.18,1.22,-.33);g.rotation.y=-.07;
+ player.body.add(g);g.visible=false;
+ player.rifle=g;player.muzzleFlash=flash;player.flashUntil=0;player.recoilUntil=0;
+}
+let rangeImpact=null;
+function fireGameRifle(hit){
+ const now=performance.now(),p=G.player;
+ if(p.rifle){p.muzzleFlash.visible=true;p.flashUntil=now+100;p.recoilUntil=now+140;}
+ if(rangeImpact){G.sc.remove(rangeImpact.mesh);rangeImpact.mesh.geometry.dispose();rangeImpact.mesh.material.dispose();rangeImpact=null}
+ if(hit){
+  const point=hit.point.clone();
+  const impact=new THREE.Mesh(new THREE.SphereGeometry(.12,10,7),new THREE.MeshBasicMaterial({color:0xffd15c,transparent:true,opacity:.95,depthWrite:false}));
+  impact.position.copy(point);G.sc.add(impact);
+  rangeImpact={mesh:impact,until:now+210};
+ }
+}
+function animateGameRifle(){
+ const now=performance.now(),p=G.player;
+ if(p.rifle){
+  p.rifle.visible=equipped==='popper';
+  p.muzzleFlash.visible=equipped==='popper'&&now<p.flashUntil;
+  p.rifle.position.z=-.33+(now<p.recoilUntil?.095*(p.recoilUntil-now)/140:0);
+  if(equipped==='popper'){p.limbs[0].arm.rotation.x=-.85;p.limbs[1].arm.rotation.x=-.85;}
+ }
+ if(rangeImpact){
+  if(now>=rangeImpact.until){G.sc.remove(rangeImpact.mesh);rangeImpact.mesh.geometry.dispose();rangeImpact.mesh.material.dispose();rangeImpact=null}
+  else{const t=(rangeImpact.until-now)/210;rangeImpact.mesh.scale.setScalar(1+(1-t)*2);rangeImpact.mesh.material.opacity=t;}
+ }
+}
+
 function makeEarthship() {
   // Keep the starter house off the original build grid, including legacy footprints.
   const x = 14, z = -3, group = new THREE.Group();
@@ -802,7 +852,7 @@ function frame(){
   G.sun.position.set(Math.cos(a)*40,Math.max(h,.05)*40,15);G.sun.intensity=Math.max(.24,h*1.1);G.amb.intensity=.68+Math.max(0,h)*.24;
   const sky=new THREE.Color().setHSL(.58,.5,.12+Math.max(0,h)*.5);G.sc.background=sky;
   G.sc.fog.color.copy(sky);
-  simStep(h);G.R.render(G.sc,G.cam);const sx=$('#sim');if(sx)sx.textContent=simTxt;const k=$('#clk');if(k)k.textContent=(h>0?'☀ Day ':'☾ Night ')+(Math.floor(Date.now()/(86400000/3))%1000);
+  simStep(h);animateGameRifle();G.R.render(G.sc,G.cam);const sx=$('#sim');if(sx)sx.textContent=simTxt;const k=$('#clk');if(k)k.textContent=(h>0?'☀ Day ':'☾ Night ')+(Math.floor(Date.now()/(86400000/3))%1000);
 }
 
 /* ---------- Morning HQ: source-ordered daily learning ---------- */
