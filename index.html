@@ -388,18 +388,26 @@ function openBookChapter(n){
 }
 
 function campaignUI(){return '<div class="card"><h2>Homestead campaign · sequential levels</h2>'+CAMPAIGN.map((l,i)=>'<div style="padding:12px 0;border-bottom:1px solid #7775"><b>'+esc(l.name)+'</b> · '+(levelUnlocked(i)?stageDone(i)?'Completed ✓':'Unlocked':'🔒 Complete previous level')+'<p>'+esc(l.desc)+'</p><small>Required components: '+l.parts.map(p=>esc(PART_LABEL[p])+(S.walls.some(w=>w.t===p)||p==='survival'&&S.lessons?.survival===1?' ✓':'')).join(' · ')+'</small> <a href="'+l.source+'" target="_blank" rel="noopener noreferrer">Guide source</a></div>').join('')+'</div>'}
+const BUILD_CURRICULUM=[["Site safety and layout",["ppe","survey","tape","level"],"Begin with the Academy's job-site safety, equipment and tool sections. Read the original discussion of protective equipment, shared workspaces and measuring tools.","A site plan establishes boundaries, elevations, access, drainage and orientation before material is committed. Record uncertainties about soil and permits rather than treating a virtual survey as real approval."],["Earthwork and foundations",["shovel","wheelbarrow","gravel","foundation"],"Review the Academy sections on hand tools, footings and material handling.","Understand the load path from roof to wall to ground. Distinguish drainage aggregate from structural fill. Compare soil profiles, frost exposure and groundwater before selecting a foundation."],["Rammed-earth tire construction",["tamper","wall"],"Read Tire Pounding and the tire terminology section, paying attention to the base course, stagger, batter and retaining walls.","Consider why a continuous wall needs consistent geometry and why compacted soil contributes mass. A virtual wall panel is not proof of structural stability; lateral earth loads and openings require engineered details."],["Structural connections",["drill","beam"],"Read the Academy material on bond beams, metals and roofing structures.","Follow the load path across junctions. A connection must transfer the forces expected from gravity, wind and other applicable loads. Compare timber and reinforced concrete conceptually; do not choose connection dimensions from game geometry."],["Thermal wrap",["insulation","membrane"],"Read the Academy section on thermal wrap and vapor barriers.","Distinguish heat storage from resistance to heat flow. Consider liquid water drainage, drying potential and thermal bridges as separate design problems. Climate determines which assembly is appropriate."],["Roof and rainwater",["roof","gutter","cistern"],"Read roofing structures, backfill terminology and the roofing-metal entries.","A roof performs several functions at once: shelter, load transfer and collection. Estimate potential annual capture from roof area and precipitation, then consider seasonal storage, overflow and water quality."],["Openings and interior masonry",["glazing","door","adobe","bottlewall","mixer"],"Read the recycled materials, cement mixing and adobe terminology sections.","Compare the functions of transparent openings, mass walls and nonbearing infill. Winter solar gain may be useful, but summer overheating and nighttime losses must be considered. Material compatibility and moisture affect durability."],["Ventilation and plumbing",["vent","pipe","pump","filter"],"The Academy preparation guide is not a complete mechanical-system manual; use the linked supplemental resources.","Air exchange and water supply require separate design calculations. Consider humidity, pollutants, pressure, treatment and maintenance access. Water quality testing is necessary even when water looks clear."],["Sanitation",["greywater","septic"],"Use the EPA water reference for supplemental reading; the Academy handout is not a sanitation design manual.","Separate potable water, greywater and sewage. Assess treatment requirements and permitted discharge or reuse before designing connections. A game object does not demonstrate pathogen removal."],["Off-grid electricity",["panel","battery","inverter","controller","wind","generator"],"Use the DOE Energy Saver reference for supplemental reading; the Academy handout is not an electrical design manual.","Estimate daily energy demand in watt-hours separately from peak power in watts. Generation, storage and conversion have different functions. Consider seasonal shortages and qualified electrical review."],["Finishes and indoor growing",["plaster","floor","planter"],"Read the Academy packout, shaping and plaster terminology sections.","Finishes depend on the condition of their substrate. Inspect for moisture before concealing walls. Indoor growing introduces light, humidity and drainage requirements that interact with household comfort."]];
+const BUILD_PRIMARY='https://earthship.com/preparation-to-the-earthship-academy/';
+function buildStageDone(i){return BUILD_CURRICULUM[i][1].every(id=>guidePassed(id)&&(!COST[id]||S.walls.some(w=>w.t===id)));}
+function buildStageOpen(i){return BUILD_CURRICULUM.slice(0,i).every((_,j)=>buildStageDone(j));}
+function constructionAllowed(id){const i=BUILD_CURRICULUM.findIndex(l=>l[1].includes(id));return i<0||buildStageOpen(i)||S.walls.some(w=>w.t===id);}
+function constructionReading(part){const i=BUILD_CURRICULUM.findIndex(l=>l[1].includes(part));if(i<0)return '';const [title,items,reading,context]=BUILD_CURRICULUM[i];return '<h2>Construction stage '+(i+1)+' · '+esc(title)+'</h2><h3>Assigned original reading</h3><p>'+esc(reading)+'</p><p><a href="'+BUILD_PRIMARY+'" target="_blank" rel="noopener noreferrer">Open complete Academy preparation guide</a></p><h3>Study companion (original educational context)</h3><p>'+esc(context)+'</p><h3>Construction objectives</h3><ul>'+items.map(id=>'<li>'+esc(PART_LABEL[id])+' — '+(COST[id]?'read and place':'read tool guide')+'</li>').join('')+'</ul><p>After reading, return here and mark the article read. New stages unlock after all current objectives are completed.</p>';}
+function constructionMenu(){return BUILD_CURRICULUM.map(([title,items],i)=>'<details '+(buildStageOpen(i)&&!buildStageDone(i)?'open':'')+'><summary>'+ (i+1)+'. '+esc(title)+(buildStageDone(i)?' ✓':buildStageOpen(i)?'':' · Locked')+'</summary>'+items.filter(constructionAllowed).map(id=>'<div><button class="btn" '+(COST[id]?'data-b':'data-review')+'="'+id+'">'+esc(PART_LABEL[id])+(guidePassed(id)?' ✓':' · Read')+'</button>'+(COST[id]?'<button class="btn" data-review="'+id+'">Article</button>':'')+'</div>').join('')+'</details>').join('')+'<details><summary>Garden and homestead</summary>'+['greenhouse','farm','compost','rainbarrel'].filter(id=>BUILD_CURRICULUM.every((_,i)=>buildStageDone(i))&&levelUnlocked(levelIndex(id))||S.walls.some(w=>w.t===id)).map(id=>'<button class="btn" data-b="'+id+'">'+esc(PART_LABEL[id])+'</button><button class="btn" data-review="'+id+'">Article</button>').join('')+'</details>';}
+
 function articleText(part){
  const g=GUIDES[part],parts=g.sections;
  const intro='<p>Learn the purpose, design considerations, material choices, sequence, operation and limitations before marking this component read. This educational simulator is not a substitute for approved engineering or site-specific construction plans.</p>';
  const text=parts.map(([title,body],i)=>'<h3>'+esc(title)+'</h3><p>'+esc(body)+'</p><h4>Why this stage matters</h4><p>'+esc(i===0?'A good design starts with local conditions, climate, loads, resource needs, codes and the complete system rather than choosing materials in isolation.':i===1?'Consider where each material comes from, how it will be installed, inspected, repaired and eventually replaced. Every subsystem interacts with water, energy, structure and occupant safety.':'Document the work, inspect vulnerable connections, and monitor performance over seasons. A self-sufficient system still requires maintenance, testing and replacement parts.')+'</p>').join('');
- return intro+text+'<h3>Further reading and original sources</h3><ul>'+g.sources.map(([label,url])=>'<li><a href="'+url+'" target="_blank" rel="noopener noreferrer">'+esc(label)+'</a></li>').join('')+'</ul><p><b>Real-world caution:</b> structural, electrical, wastewater and potable-water systems require local permitting and qualified professional review.</p>';
+ return constructionReading(part)+intro+text+'<h3>Further reading and original sources</h3><ul>'+g.sources.map(([label,url])=>'<li><a href="'+url+'" target="_blank" rel="noopener noreferrer">'+esc(label)+'</a></li>').join('')+'</ul><p><b>Real-world caution:</b> structural, electrical, wastewater and potable-water systems require local permitting and qualified professional review.</p>';
 }
 
 function guidePassed(part) {
   return !!GUIDES[part]&&S.lessons?.[part] === GUIDES[part].version;
 }
 function openGuide(part){
- const dialog=$('#build-guide'),idx=levelIndex(part);
+ const dialog=$('#build-guide'),idx=levelIndex(part);if(!constructionAllowed(part)){toast('Complete earlier construction stages first');return;}
  if(idx>0&&!levelUnlocked(idx)){toast('Complete '+CAMPAIGN[idx-1].name+' first');return}
  const review=guidePassed(part);setBuild(false);G.keys.clear();
  dialog.innerHTML='<div class="guide-top"><div><small>'+esc(CAMPAIGN[idx]?.name||'Field guide')+' · Scroll to the end to unlock</small><h2 id="guide-title">'+esc(PART_LABEL[part])+'</h2></div><button class="btn" type="button" data-close>Close</button></div><article style="line-height:1.7;max-width:75ch">'+articleText(part)+'</article><div style="padding:20px 0"><button class="btn pri" id="mark-read" disabled>'+ (review?'Mark as read again':'Mark as Read · Unlock')+'</button><p class="mut">Read to the end to enable this button. No quiz.</p></div>';
@@ -407,13 +415,14 @@ function openGuide(part){
  const mark=dialog.querySelector('#mark-read');
  const check=()=>{if(dialog.scrollTop+dialog.clientHeight>=dialog.scrollHeight-45)mark.disabled=false};
  dialog.onscroll=check;
- mark.onclick=()=>{S.lessons={...S.lessons,[part]:GUIDES[part].version};save();dialog.close();if(part==='survival'){toast('Survival level completed');hud();return}if(isStudyTool(part)){setBuild(selection);toast(PART_LABEL[part]+' studied');return}if(TOOLS[part]){toolsOpen=true;selectTool(part)}else setBuild(part);toast(PART_LABEL[part]+' unlocked')};
+ mark.onclick=()=>{S.lessons={...S.lessons,[part]:GUIDES[part].version};save();dialog.close();if(part==='survival'){toast('Survival level completed');hud();return}if(isStudyTool(part)){build=selection;hud();toast(PART_LABEL[part]+' studied');return}if(TOOLS[part]){toolsOpen=true;selectTool(part)}else setBuild(part);toast(PART_LABEL[part]+' unlocked')};
  dialog.onclose=()=>$('#cv').focus({preventScroll:true});
  dialog.showModal();dialog.scrollTop=0;check();
 }
 
 function canBuild(t){return S.res.tires>=COST[t].tires&&S.res.earth>=COST[t].earth}
 function setBuild(t){
+  if(t&&!constructionAllowed(t)){toast('Complete earlier construction stages first');return;}
   if(t&&levelIndex(t)>0&&!levelUnlocked(levelIndex(t))){toast('Complete the previous level first');return}
   if(t){toolsOpen=false;equipped=null;firstMark=null}
   build=t;
@@ -426,12 +435,12 @@ function hud(){
   $('#hud').innerHTML=`<div>🛞 ${S.res.tires} · 🟫 ${S.res.earth} · 🥬 ${S.res.food||0}</div>
   <button class="btn ${build?'pri':''}" id="bm" aria-pressed="${!!build}">Build (B)</button><button class="btn ${toolsOpen?'pri':''}" id="tools-toggle" aria-pressed="${toolsOpen}">Tools</button>`+
   (toolsOpen?toolMenu():'')+
-  (build?earthBuildMenu()+'<button class="btn" id="guide-button">'+(guidePassed(build)?'Review guide':'Read to unlock')+'</button>'+(guidePassed(build)?'<button class="btn" id="br">Rotate (R)</button>':''):'')+
+  (build?constructionMenu()+'<button class="btn" id="guide-button">'+(guidePassed(build)?'Review guide':'Read to unlock')+'</button>'+(guidePassed(build)?'<button class="btn" id="br">Rotate (R)</button>':''):'')+
   (levelUnlocked(2)&&!guidePassed('survival')?'<button class="btn pri" id="survival-guide">Read survival guide</button>':'')+
   (S.sim.crop>=100?'<button class="btn pri" id="hv">Harvest crops</button>':'')+`<div id="sim">${simTxt}</div><div class="mut" id="clk"></div>`;
   $('#tools-toggle').onclick=()=>{toolsOpen=!toolsOpen;if(toolsOpen)setBuild(false);else hud()};
   document.querySelectorAll('[data-tool]').forEach(b=>b.onclick=()=>selectTool(b.dataset.tool));
-  $('#bm').onclick=()=>setBuild(build?false:selection);
+  $('#bm').onclick=()=>{if(build){setBuild(false);return}build=selection;G.grid.visible=false;ghostSet();hud()};
   document.querySelectorAll('[data-b]').forEach(b=>b.onclick=()=>guidePassed(b.dataset.b)?setBuild(b.dataset.b):openGuide(b.dataset.b));
   document.querySelectorAll('[data-review]').forEach(b=>b.onclick=()=>openGuide(b.dataset.review));
   if($('#guide-button'))$('#guide-button').onclick=()=>openGuide(build);
@@ -699,7 +708,7 @@ function initGL(){
     }
     const w=hit(e);
     if(!w)return;
-    if(!guidePassed(build)){openGuide(build);return}
+    if(!constructionAllowed(build)){toast('Complete earlier construction stages first');return}if(!guidePassed(build)){openGuide(build);return}
     if(blocked(w)){toast('That spot is occupied');return}
     if(!canBuild(build)){toast('Not enough resources');return}
     S.res.tires-=COST[build].tires;
