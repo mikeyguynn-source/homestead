@@ -320,7 +320,12 @@ const EXTRA_SOURCES={
  survival:[['Ready.gov emergency kit','https://www.ready.gov/kit']]
 };
 for(const [id,sections] of Object.entries(EXTRA_READING)){PART_LABEL[id]=EXTRA_PARTS[id];GUIDES[id]={version:1,sources:EXTRA_SOURCES[id],sections:[[sections[0],sections[1]],[sections[2],sections[3]],[sections[4],sections[5]]]};}
-const levelIndex=id=>CAMPAIGN.findIndex(l=>l.parts.includes(id));
+const EARTH_CATALOG=[["foundation","Structure","Foundation",[3,0.35,2],10065291,"Transfers loads to soil. Heavy tire walls require assessment of bearing capacity, settlement and lateral loads.","Investigate frost depth, groundwater and expansive soil; coordinate drainage and penetrations with an engineer."],["gravel","Structure","Drainage gravel",[2,0.18,2],10064254,"Graded aggregate provides drainage and can interrupt capillary moisture movement.","Control fines, provide a suitable outlet and inspect for sediment blockage; gravel alone cannot resist water pressure."],["adobe","Structure","Adobe partition",[2,1.4,0.35],11959888,"Clay binds aggregate and earthen partitions provide thermal mass.","Test local soil mixes for shrinkage and protect against persistent wetting; distinguish infill from bearing walls."],["bottlewall","Structure","Bottle and can infill",[2,1.3,0.35],7576451,"Reused containers can provide decorative infill and colored daylight.","Design for glass safety, mortar compatibility and moisture; do not assume containers can carry roof loads."],["insulation","Envelope","Insulation",[2,1.5,0.25],14073216,"Insulation slows heat flow, unlike thermal mass which stores heat.","Compare thermal resistance, moisture tolerance and fire behavior; maintain continuity at junctions."],["membrane","Envelope","Waterproofing membrane",[2,0.12,2],4409418,"Membranes protect below-grade walls and roofs against liquid water.","Coordinate drainage, protected seams and penetrations; avoid trapping moisture in vulnerable materials."],["beam","Envelope","Roof beam",[3,0.35,0.4],7951415,"Beams transfer roof loads to supporting walls or columns.","Span, material grade, snow, uplift and connections require engineered design; inspect for deformation and moisture."],["roof","Envelope","Roof catchment",[3,0.22,2],7633792,"Roof surfaces shelter occupants and collect rainwater.","Potential collection in gallons equals square feet times rainfall inches times 0.623 before losses. Coordinate flashing, slope, gutters and structural loads."],["glazing","Envelope","Solar glazing",[2,1.8,0.2],7976640,"Glazing admits daylight and solar heat while exchanging heat with outdoors.","Compare U-factor, solar heat gain and seasonal shading; plan condensation drainage and safety glazing."],["door","Envelope","Exterior door",[1,2,0.25],8477243,"Doors provide access, weather protection and emergency egress.","Coordinate openings, thresholds, accessibility, seals and flashing; verify escape routes."],["vent","Envelope","Ventilation unit",[1,0.8,0.6],9149342,"Ventilation removes pollutants and moisture; natural flow depends on wind and buoyancy.","Design for occupancy and climate; heat recovery can reduce losses. Inspect filters and condensation."],["gutter","Water","Gutter and downspout",[3,0.35,0.35],8557468,"Gutters convey roof runoff toward storage or safe discharge.","Size for peak rainfall intensity rather than annual rainfall; provide screens, cleanouts and safe overflow."],["filter","Water","Water treatment station",[0.8,1.3,0.65],6134437,"Sediment filtration and disinfection address different contaminants; clear water is not necessarily safe.","Test source water, select validated treatment and separate potable from nonpotable networks."],["pump","Water","Water pump",[0.8,0.65,0.6],5077136,"Pumps provide flow and pressure where gravity is insufficient.","Match flow, pressure head, pipe losses and energy demand; monitor leaks and dry-running risk."],["pipe","Water","Plumbing pipe",[2,0.22,0.22],14540239,"Pipes convey water between storage, treatment and fixtures.","Choose approved material and pressure rating; plan isolation, backflow protection and freeze protection."],["septic","Water","Wastewater treatment",[2,0.8,1.4],7830641,"Wastewater treatment protects groundwater and public health.","Soil, groundwater, occupancy and regulations determine permitted treatment; greywater reuse does not eliminate blackwater treatment."],["inverter","Energy","Solar inverter",[0.7,0.9,0.4],5792622,"Inverters convert DC electricity to AC for compatible loads.","Consider surge power, efficiency and battery compatibility; electrical protection requires qualified design."],["controller","Energy","Charge controller",[0.6,0.6,0.3],5536619,"Charge controllers regulate energy transfer to compatible batteries.","Match voltage, current, chemistry and temperature limits; monitor faults and follow manufacturer requirements."],["wind","Energy","Wind turbine",[1,3,1],12239556,"Wind generation can complement solar where the wind resource is suitable.","Energy depends on wind distribution and turbulence; evaluate tower loads, setbacks and maintenance access."],["generator","Energy","Backup generator",[1.2,0.9,0.8],10192457,"Backup generation supplies essential loads during renewable shortfalls.","Consider fuel, noise and maintenance; operate outdoors away from openings because carbon monoxide is deadly."],["plaster","Interior","Earthen plaster",[1.5,1.2,0.15],13805437,"Earthen plaster provides a repairable finish on compatible substrates.","Test adhesion and shrinkage on sample panels; resolve moisture sources before finishing."],["floor","Interior","Finished floor",[2,0.15,2],11174496,"Floors provide a durable surface and may contribute thermal mass.","Coordinate insulation, moisture control, accessibility and plumbing before finishes."],["planter","Interior","Indoor planter",[1.8,0.55,0.8],8938562,"Planters support food production and influence indoor humidity.","Consider light, root volume, drainage and nutrients; avoid unsafe wastewater exposure."]],EARTH_STUDY=[["level","Spirit level and string line","Establish horizontal, vertical and straight references. Check accuracy against a reversed reading and use a stable benchmark."],["tamper","Hand tamper and sledge","Compaction reduces voids in suitable fill. Soil moisture and material properties affect results; use an approved specification and appropriate protection."],["wheelbarrow","Wheelbarrow and buckets","Material handling affects fatigue and productivity. Plan stable routes and manageable loads."],["mixer","Mortar mixer and trowel","Mixing distributes constituents and trowels place compatible finishes. Control dust and protect against wet cement."],["drill","Drill, saw and fasteners","Cutting and fastening prepare and join components. Match tools and fasteners to approved connections and use guards."],["ppe","Protective equipment","Select eye, hearing, respiratory, hand and foot protection based on task hazards. PPE does not replace engineering controls."],["survey","Survey and soil testing","Surveying establishes elevations and boundaries. Geotechnical investigation identifies soil constraints; visual inspection cannot establish bearing capacity."]];
+for(const [id,cat,label,size,color,purpose,design] of EARTH_CATALOG){PART_LABEL[id]=label;COST[id]={tires:1,earth:4};GUIDES[id]={version:1,sources:[['Earthship Academy','https://earthship.com/preparation-to-the-earthship-academy/'],['DOE Energy Saver','https://www.energy.gov/energysaver/energy-saver'],['EPA water topics','https://www.epa.gov/environmental-topics/water-topics']],sections:[['Principles and function',purpose],['Design and installation considerations',design],['Simulation scope','This is a placeable conceptual module. Its geometry and resource cost are illustrative; it does not yet have an independent engineering simulation.']]};}
+for(const [id,label,body] of EARTH_STUDY){PART_LABEL[id]=label;GUIDES[id]={version:1,sources:[['OSHA construction safety','https://www.osha.gov/construction']],sections:[['Purpose and selection',body],['Simulation scope','Study-only tool; no interactive operation is implemented yet.']]};}
+const isStudyTool=id=>EARTH_STUDY.some(t=>t[0]===id);
+function earthBuildMenu(){const groups={Structure:['wall'],Envelope:[],Water:['cistern','greywater'],Energy:['panel','battery'],Interior:[],Garden:['greenhouse','farm','compost','rainbarrel']};for(const [id,cat] of EARTH_CATALOG)groups[cat].push(id);return Object.entries(groups).map(([cat,ids])=>'<details '+(ids.includes(build)?'open':'')+'><summary>'+cat+'</summary>'+ids.filter(t=>levelUnlocked(levelIndex(t))).map(t=>'<div><button class="btn" data-b="'+t+'">'+esc(PART_LABEL[t])+(guidePassed(t)?'':' · Study')+' <small>'+COST[t].tires+'🛞 '+COST[t].earth+'🟫</small></button><button class="btn" data-review="'+t+'">Article</button></div>').join('')+'</details>').join('')+'<details><summary>Construction tools</summary>'+EARTH_STUDY.map(([id,label])=>'<button class="btn" data-review="'+id+'">'+esc(label)+(guidePassed(id)?' ✓':' · Study')+'</button>').join('')+'</details>';}
+const levelIndex=id=>EARTH_CATALOG.some(t=>t[0]===id)||isStudyTool(id)?0:CAMPAIGN.findIndex(l=>l.parts.includes(id));
 const stageDone=i=>CAMPAIGN[i].parts.every(id=>S.walls.some(w=>w.t===id)||id==='survival'&&S.lessons?.survival===1);
 const levelUnlocked=i=>i===0||stageDone(i-1);
 
@@ -379,7 +384,7 @@ function openBookChapter(n){
  dialog.onscroll=check;
  mark.onclick=()=>{S.lessons={...S.lessons,['book-'+n]:true};save();dialog.close();dash();toast('Chapter '+n+' completed')};
  dialog.onclose=()=>$('#cv').focus({preventScroll:true});
- dialog.showModal();check();
+ dialog.showModal();dialog.scrollTop=0;check();
 }
 
 function campaignUI(){return '<div class="card"><h2>Homestead campaign · sequential levels</h2>'+CAMPAIGN.map((l,i)=>'<div style="padding:12px 0;border-bottom:1px solid #7775"><b>'+esc(l.name)+'</b> · '+(levelUnlocked(i)?stageDone(i)?'Completed ✓':'Unlocked':'🔒 Complete previous level')+'<p>'+esc(l.desc)+'</p><small>Required components: '+l.parts.map(p=>esc(PART_LABEL[p])+(S.walls.some(w=>w.t===p)||p==='survival'&&S.lessons?.survival===1?' ✓':'')).join(' · ')+'</small> <a href="'+l.source+'" target="_blank" rel="noopener noreferrer">Guide source</a></div>').join('')+'</div>'}
@@ -391,7 +396,7 @@ function articleText(part){
 }
 
 function guidePassed(part) {
-  return S.lessons?.[part] === GUIDES[part].version;
+  return !!GUIDES[part]&&S.lessons?.[part] === GUIDES[part].version;
 }
 function openGuide(part){
  const dialog=$('#build-guide'),idx=levelIndex(part);
@@ -402,9 +407,9 @@ function openGuide(part){
  const mark=dialog.querySelector('#mark-read');
  const check=()=>{if(dialog.scrollTop+dialog.clientHeight>=dialog.scrollHeight-45)mark.disabled=false};
  dialog.onscroll=check;
- mark.onclick=()=>{S.lessons={...S.lessons,[part]:GUIDES[part].version};save();dialog.close();if(part==='survival'){toast('Survival level completed');hud();return}if(TOOLS[part]){toolsOpen=true;selectTool(part)}else setBuild(part);toast(PART_LABEL[part]+' unlocked')};
+ mark.onclick=()=>{S.lessons={...S.lessons,[part]:GUIDES[part].version};save();dialog.close();if(part==='survival'){toast('Survival level completed');hud();return}if(isStudyTool(part)){setBuild(selection);toast(PART_LABEL[part]+' studied');return}if(TOOLS[part]){toolsOpen=true;selectTool(part)}else setBuild(part);toast(PART_LABEL[part]+' unlocked')};
  dialog.onclose=()=>$('#cv').focus({preventScroll:true});
- dialog.showModal();check();
+ dialog.showModal();dialog.scrollTop=0;check();
 }
 
 function canBuild(t){return S.res.tires>=COST[t].tires&&S.res.earth>=COST[t].earth}
@@ -421,13 +426,14 @@ function hud(){
   $('#hud').innerHTML=`<div>🛞 ${S.res.tires} · 🟫 ${S.res.earth} · 🥬 ${S.res.food||0}</div>
   <button class="btn ${build?'pri':''}" id="bm" aria-pressed="${!!build}">Build (B)</button><button class="btn ${toolsOpen?'pri':''}" id="tools-toggle" aria-pressed="${toolsOpen}">Tools</button>`+
   (toolsOpen?toolMenu():'')+
-  (build?Object.keys(COST).filter(t=>levelUnlocked(levelIndex(t))).map(t=>`<button class="btn ${build===t?'pri':''}" data-b="${t}" aria-pressed="${build===t}">${PART_LABEL[t]}${guidePassed(t)?'':' · Study'} <small>${COST[t].tires}🛞 ${COST[t].earth}🟫</small></button>`).join('')+'<button class="btn" id="guide-button">'+(guidePassed(build)?'Review guide':'Read to unlock')+'</button>'+(guidePassed(build)?'<button class="btn" id="br">Rotate (R)</button>':''):'')+
+  (build?earthBuildMenu()+'<button class="btn" id="guide-button">'+(guidePassed(build)?'Review guide':'Read to unlock')+'</button>'+(guidePassed(build)?'<button class="btn" id="br">Rotate (R)</button>':''):'')+
   (levelUnlocked(2)&&!guidePassed('survival')?'<button class="btn pri" id="survival-guide">Read survival guide</button>':'')+
   (S.sim.crop>=100?'<button class="btn pri" id="hv">Harvest crops</button>':'')+`<div id="sim">${simTxt}</div><div class="mut" id="clk"></div>`;
   $('#tools-toggle').onclick=()=>{toolsOpen=!toolsOpen;if(toolsOpen)setBuild(false);else hud()};
   document.querySelectorAll('[data-tool]').forEach(b=>b.onclick=()=>selectTool(b.dataset.tool));
   $('#bm').onclick=()=>setBuild(build?false:selection);
   document.querySelectorAll('[data-b]').forEach(b=>b.onclick=()=>guidePassed(b.dataset.b)?setBuild(b.dataset.b):openGuide(b.dataset.b));
+  document.querySelectorAll('[data-review]').forEach(b=>b.onclick=()=>openGuide(b.dataset.review));
   if($('#guide-button'))$('#guide-button').onclick=()=>openGuide(build);
   if($('#br'))$('#br').onclick=()=>{rot=(rot+Math.PI/2)%(2*Math.PI)};
   if($('#hv'))$('#hv').onclick=harvest;
@@ -443,6 +449,7 @@ const PART_SIZE = {
   wall: [3, 1.2, 1], cistern: [1.2, 1.4, 1.2], panel: [1.3, 1.1, .9],
   battery: [.9, .7, .6], greenhouse: [2.4, 1.3, 1.6], greywater: [1.8, .35, 1.3],farm:[2.4,.3,2],compost:[1.2,1,1.2],rainbarrel:[1,1.4,1]
 };
+for(const [id,cat,label,size] of EARTH_CATALOG)PART_SIZE[id]=size;
 const PLAYER_RADIUS = .27;
 const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
 function solid(x, z, width, height, depth, bottom = 0) {
@@ -796,6 +803,7 @@ function followPlayer() {
 
 function partMesh(t,ghost){if(!t||t==='wall')return wallMesh(ghost);
   const g=new THREE.Group(),M=c=>new THREE.MeshLambertMaterial({color:c,transparent:ghost,opacity:ghost?.55:1}),B=(geo,c,y)=>{const m=new THREE.Mesh(geo,M(c));m.position.y=y;g.add(m);return m};
+  const entry=EARTH_CATALOG.find(e=>e[0]===t);if(entry){const [id,cat,label,[w,h,d],color]=entry;B(new THREE.BoxGeometry(w,h,d),color,h/2);return g;}
   if(t==='cistern')B(new THREE.CylinderGeometry(.6,.6,1.4,16),0x5d7f93,.7);
   if(t==='greywater'){B(new THREE.BoxGeometry(1.8,.2,1.3),0x9a9a92,.1);B(new THREE.BoxGeometry(1.6,.2,1.1),0x6e8b5a,.25)}
   if(t==='battery')B(new THREE.BoxGeometry(.9,.7,.6),0x3d7a4a,.35);
